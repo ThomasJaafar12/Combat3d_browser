@@ -3,7 +3,7 @@
 ## Module layout
 - `client/`: React + Three.js browser runtime.
 - `client/src/config`: feature flags and environment toggles.
-- `client/src/game`: asset anchors now; combat content, authority, and scene systems will live here next.
+- `client/src/game`: curated asset bindings, shared combat definitions, and upcoming authority/scene systems.
 - `docs/`: V0 implementation status and architecture notes.
 
 ## Combat state ownership
@@ -23,8 +23,8 @@
 - Companion and enemy logic will share the same combat action evaluation code where possible.
 
 ## Data definition structure
-- Planned definitions: `UnitDefinition`, `WeaponDefinition`, `SpellDefinition`, `EffectDefinition`, `OrderDefinition`, `RewardDefinition`, `BehaviorProfileDefinition`.
-- V0 content will be declared as data first and consumed by shared resolution code.
+- Implemented definitions: `UnitDefinition`, `WeaponDefinition`, `SpellDefinition`, `EffectDefinition`, `OrderDefinition`, `RewardDefinition`, `BehaviorProfileDefinition`, and `SpellLoadoutDefinition`.
+- V0 content is already declared as data first and will be consumed by shared resolution code.
 
 ## Future extension notes
 - Replace the local authority transport with a real server adapter when the Rust/SpacetimeDB toolchain is available.

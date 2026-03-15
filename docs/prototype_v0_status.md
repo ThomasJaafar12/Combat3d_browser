@@ -5,10 +5,12 @@
 - React + Vite client runtime created in `client/`.
 - Feature flags added for the V0 combat slice.
 - Asset audit completed for curated character, environment, UI, and audio anchors.
+- Commit 2 shared content catalog completed.
+- Shared schemas added for units, weapons, spells, orders, rewards, statuses, loadouts, and behavior profiles.
+- Curated asset references centralized for runtime use.
 - Required documentation initialized.
 
 ## Incomplete systems
-- Shared combat schemas and content definitions are not wired yet.
 - No authoritative combat simulation yet.
 - No playable encounter, spells, companions, orders, or rewards yet.
 
@@ -26,9 +28,9 @@
 - Confirm the scaffold scene and left-side audit panel render.
 
 ## Next recommended steps
-- Add shared schemas for units, weapons, spells, orders, rewards, and behavior profiles.
 - Build the authoritative combat engine before adding client presentation details.
 - Replace the scaffold scene with the encounter map and third-person controller.
 
 ## Commit notes
 - Commit 1: audited the repo, confirmed the assets-only branch state, mapped the curated asset set, scaffolded the client runtime, added feature flags, and initialized the required docs.
+- Commit 2: defined the shared combat catalog for V0 content, centralized curated asset references, and verified the catalog summary through the browser test hooks.

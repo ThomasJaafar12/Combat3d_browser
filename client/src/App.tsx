@@ -3,6 +3,7 @@ import { Float, Grid, OrbitControls, Text } from "@react-three/drei";
 import { useEffect } from "react";
 import { featureFlags } from "@/config/featureFlags";
 import { assetAudit } from "@/game/assetAudit";
+import { catalogSummary } from "@/game/content";
 
 function App() {
   useEffect(() => {
@@ -12,6 +13,7 @@ function App() {
         note: "Commit 1 placeholder scene",
         featureFlags,
         assetAudit,
+        catalogSummary,
       });
 
     const advanceTime = (_ms: number) => {
@@ -58,6 +60,18 @@ function App() {
             <li>Leader: {assetAudit.characters.leader}</li>
             <li>Companion: {assetAudit.characters.companion}</li>
             <li>Enemy: {assetAudit.characters.enemy}</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Shared content snapshot</h2>
+          <ul>
+            <li>Units: {catalogSummary.unitCount}</li>
+            <li>Weapons: {catalogSummary.weaponCount}</li>
+            <li>Spells: {catalogSummary.spellCount}</li>
+            <li>Statuses: {catalogSummary.statusCount}</li>
+            <li>Orders: {catalogSummary.orderCount}</li>
+            <li>Rewards: {catalogSummary.rewardCount}</li>
           </ul>
         </section>
       </aside>
