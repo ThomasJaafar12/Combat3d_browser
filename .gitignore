@@ -31,6 +31,7 @@ Thumbs.db
 .tmp/
 temp/
 tmp/
+output/
 
 # three.js / asset pipeline extras
 *.blend1
@@ -46,9 +47,11 @@ renders/
 # local databases / runtime state
 *.sqlite
 *.sqlite3
+*.tsbuildinfo
 
 # large archives and dumps not meant for source control
 dump/
 backups/
 
 assetsv0/
+starter_reference/

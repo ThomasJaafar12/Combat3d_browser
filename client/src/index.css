@@ -1,0 +1,113 @@
+:root {
+  color-scheme: light;
+  font-family: "Segoe UI", "Trebuchet MS", sans-serif;
+  background:
+    radial-gradient(circle at top, rgba(255, 245, 223, 0.9), transparent 42%),
+    linear-gradient(180deg, #ece2cc 0%, #dbc7a3 52%, #c3a376 100%);
+  color: #1f1a15;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  min-height: 100vh;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: minmax(320px, 420px) 1fr;
+  min-height: 100vh;
+}
+
+.boot-panel {
+  padding: 32px;
+  background: rgba(245, 237, 224, 0.86);
+  backdrop-filter: blur(14px);
+  border-right: 1px solid rgba(61, 42, 25, 0.14);
+  box-shadow: 0 0 40px rgba(46, 28, 13, 0.08);
+}
+
+.boot-panel h1,
+.boot-panel h2,
+.boot-panel p {
+  margin-top: 0;
+}
+
+.boot-panel h1 {
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+  margin-bottom: 16px;
+}
+
+.boot-panel h2 {
+  margin-bottom: 12px;
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #694f2f;
+}
+
+.boot-panel p {
+  line-height: 1.5;
+}
+
+.boot-panel section + section {
+  margin-top: 24px;
+}
+
+.boot-panel ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.boot-panel li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 252, 245, 0.75);
+  border: 1px solid rgba(87, 58, 31, 0.08);
+  font-size: 0.92rem;
+}
+
+.viewport-shell {
+  min-height: 100vh;
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.8rem;
+  color: #8e6236;
+  margin-bottom: 14px;
+}
+
+@media (max-width: 960px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+
+  .boot-panel {
+    border-right: 0;
+    border-bottom: 1px solid rgba(61, 42, 25, 0.14);
+  }
+
+  .viewport-shell {
+    min-height: 52vh;
+  }
+}
