@@ -1,0 +1,52 @@
+# dependencies
+node_modules/
+
+# build outputs
+dist/
+build/
+out/
+coverage/
+storybook-static/
+
+# env / secrets
+.env
+.env.*
+!.env.example
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# editor / OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# caches / temp
+.cache/
+.tmp/
+temp/
+tmp/
+
+# three.js / asset pipeline extras
+*.blend1
+*.blend@
+*.bak
+
+# generated textures / compressed exports if reproducible
+generated/
+exports/
+captures/
+renders/
+
+# local databases / runtime state
+*.sqlite
+*.sqlite3
+
+# large archives and dumps not meant for source control
+dump/
+backups/
