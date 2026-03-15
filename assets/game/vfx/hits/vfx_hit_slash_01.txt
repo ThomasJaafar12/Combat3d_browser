@@ -1,0 +1,7 @@
+﻿PNG/vfx_hit_slash_01/frame0000.png = 0 0 32 32
+PNG/vfx_hit_slash_01/frame0001.png = 32 0 32 32
+PNG/vfx_hit_slash_01/frame0002.png = 64 0 32 32
+PNG/vfx_hit_slash_01/frame0003.png = 96 0 32 32
+PNG/vfx_hit_slash_01/frame0004.png = 128 0 32 32
+PNG/vfx_hit_slash_01/frame0005.png = 160 0 32 32
+PNG/vfx_hit_slash_01/frame0006.png = 192 0 32 32

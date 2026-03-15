@@ -1,0 +1,9 @@
+﻿PNG/vfx_spell_projectile_01/frame0000.png = 0 0 128 72
+PNG/vfx_spell_projectile_01/frame0001.png = 128 0 128 72
+PNG/vfx_spell_projectile_01/frame0002.png = 256 0 128 72
+PNG/vfx_spell_projectile_01/frame0003.png = 384 0 128 72
+PNG/vfx_spell_projectile_01/frame0004.png = 512 0 128 72
+PNG/vfx_spell_projectile_01/frame0005.png = 640 0 128 72
+PNG/vfx_spell_projectile_01/frame0006.png = 768 0 128 72
+PNG/vfx_spell_projectile_01/frame0007.png = 896 0 128 72
+PNG/vfx_spell_projectile_01/frame0008.png = 1024 0 128 72

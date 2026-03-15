@@ -1,0 +1,2005 @@
+﻿[
+    {
+        "id":  "mat_env_uneven_brick_basecolor_01",
+        "type":  "material_texture",
+        "source_pack":  "Medieval Village MegaKit [Standard]",
+        "license":  "CC0 1.0 (Quaternius Medieval Village MegaKit Free/Standard)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Medieval Village MegaKit\\Medieval Village MegaKit[Standard]\\glTF\\T_UnevenBrick_BaseColor.png",
+        "stored_at":  "assets/game/environment/arena_outdoor/materials/mat_env_uneven_brick_basecolor_01.png",
+        "used_for":  [
+                         "arena_outdoor"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "mat_env_uneven_brick_normal_01",
+        "type":  "material_texture",
+        "source_pack":  "Medieval Village MegaKit [Standard]",
+        "license":  "CC0 1.0 (Quaternius Medieval Village MegaKit Free/Standard)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Medieval Village MegaKit\\Medieval Village MegaKit[Standard]\\glTF\\T_UnevenBrick_Normal.png",
+        "stored_at":  "assets/game/environment/arena_outdoor/materials/mat_env_uneven_brick_normal_01.png",
+        "used_for":  [
+                         "arena_outdoor"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "mat_env_uneven_brick_roughness_01",
+        "type":  "material_texture",
+        "source_pack":  "Medieval Village MegaKit [Standard]",
+        "license":  "CC0 1.0 (Quaternius Medieval Village MegaKit Free/Standard)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Medieval Village MegaKit\\Medieval Village MegaKit[Standard]\\glTF\\T_UnevenBrick_Roughness.png",
+        "stored_at":  "assets/game/environment/arena_outdoor/materials/mat_env_uneven_brick_roughness_01.png",
+        "used_for":  [
+                         "arena_outdoor"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "mat_env_wood_trim_basecolor_01",
+        "type":  "material_texture",
+        "source_pack":  "Medieval Village MegaKit [Standard]",
+        "license":  "CC0 1.0 (Quaternius Medieval Village MegaKit Free/Standard)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Medieval Village MegaKit\\Medieval Village MegaKit[Standard]\\glTF\\T_WoodTrim_BaseColor.png",
+        "stored_at":  "assets/game/environment/arena_outdoor/materials/mat_env_wood_trim_basecolor_01.png",
+        "used_for":  [
+                         "arena_outdoor"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "mat_env_wood_trim_normal_01",
+        "type":  "material_texture",
+        "source_pack":  "Medieval Village MegaKit [Standard]",
+        "license":  "CC0 1.0 (Quaternius Medieval Village MegaKit Free/Standard)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Medieval Village MegaKit\\Medieval Village MegaKit[Standard]\\glTF\\T_WoodTrim_Normal.png",
+        "stored_at":  "assets/game/environment/arena_outdoor/materials/mat_env_wood_trim_normal_01.png",
+        "used_for":  [
+                         "arena_outdoor"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "mat_env_wood_trim_roughness_01",
+        "type":  "material_texture",
+        "source_pack":  "Medieval Village MegaKit [Standard]",
+        "license":  "CC0 1.0 (Quaternius Medieval Village MegaKit Free/Standard)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Medieval Village MegaKit\\Medieval Village MegaKit[Standard]\\glTF\\T_WoodTrim_Roughness.png",
+        "stored_at":  "assets/game/environment/arena_outdoor/materials/mat_env_wood_trim_roughness_01.png",
+        "used_for":  [
+                         "arena_outdoor"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "mat_env_plaster_basecolor_01",
+        "type":  "material_texture",
+        "source_pack":  "Medieval Village MegaKit [Standard]",
+        "license":  "CC0 1.0 (Quaternius Medieval Village MegaKit Free/Standard)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Medieval Village MegaKit\\Medieval Village MegaKit[Standard]\\glTF\\T_Plaster_BaseColor.png",
+        "stored_at":  "assets/game/environment/arena_outdoor/materials/mat_env_plaster_basecolor_01.png",
+        "used_for":  [
+                         "arena_outdoor"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "mat_env_plaster_normal_01",
+        "type":  "material_texture",
+        "source_pack":  "Medieval Village MegaKit [Standard]",
+        "license":  "CC0 1.0 (Quaternius Medieval Village MegaKit Free/Standard)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Medieval Village MegaKit\\Medieval Village MegaKit[Standard]\\glTF\\T_Plaster_Normal.png",
+        "stored_at":  "assets/game/environment/arena_outdoor/materials/mat_env_plaster_normal_01.png",
+        "used_for":  [
+                         "arena_outdoor"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "mat_env_plaster_orm_01",
+        "type":  "material_texture",
+        "source_pack":  "Medieval Village MegaKit [Standard]",
+        "license":  "CC0 1.0 (Quaternius Medieval Village MegaKit Free/Standard)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Medieval Village MegaKit\\Medieval Village MegaKit[Standard]\\glTF\\T_Plaster_ORM.png",
+        "stored_at":  "assets/game/environment/arena_outdoor/materials/mat_env_plaster_orm_01.png",
+        "used_for":  [
+                         "arena_outdoor"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "env_ground_arena_brick_01",
+        "type":  "environment",
+        "source_pack":  "Medieval Village MegaKit [Standard]",
+        "license":  "CC0 1.0 (Quaternius Medieval Village MegaKit Free/Standard)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Medieval Village MegaKit\\Medieval Village MegaKit[Standard]\\glTF\\Floor_UnevenBrick.gltf",
+        "stored_at":  "assets/game/environment/arena_outdoor/ground/env_ground_arena_brick_01.gltf",
+        "used_for":  [
+                         "arena_ground"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "env_ground_arena_brick_01",
+        "type":  "environment_buffer",
+        "source_pack":  "Medieval Village MegaKit [Standard]",
+        "license":  "CC0 1.0 (Quaternius Medieval Village MegaKit Free/Standard)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Medieval Village MegaKit\\Medieval Village MegaKit[Standard]\\glTF\\Floor_UnevenBrick.bin",
+        "stored_at":  "assets\\game\\environment\\arena_outdoor\\ground\\env_ground_arena_brick_01.bin",
+        "used_for":  [
+                         "arena_ground"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "env_obstacle_crate_01",
+        "type":  "environment",
+        "source_pack":  "Medieval Village MegaKit [Standard]",
+        "license":  "CC0 1.0 (Quaternius Medieval Village MegaKit Free/Standard)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Medieval Village MegaKit\\Medieval Village MegaKit[Standard]\\glTF\\Prop_Crate.gltf",
+        "stored_at":  "assets/game/environment/arena_outdoor/obstacles/env_obstacle_crate_01.gltf",
+        "used_for":  [
+                         "arena_cover",
+                         "arena_obstacle"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "env_obstacle_crate_01",
+        "type":  "environment_buffer",
+        "source_pack":  "Medieval Village MegaKit [Standard]",
+        "license":  "CC0 1.0 (Quaternius Medieval Village MegaKit Free/Standard)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Medieval Village MegaKit\\Medieval Village MegaKit[Standard]\\glTF\\Prop_Crate.bin",
+        "stored_at":  "assets\\game\\environment\\arena_outdoor\\obstacles\\env_obstacle_crate_01.bin",
+        "used_for":  [
+                         "arena_cover",
+                         "arena_obstacle"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "env_obstacle_fence_wood_01",
+        "type":  "environment",
+        "source_pack":  "Medieval Village MegaKit [Standard]",
+        "license":  "CC0 1.0 (Quaternius Medieval Village MegaKit Free/Standard)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Medieval Village MegaKit\\Medieval Village MegaKit[Standard]\\glTF\\Prop_WoodenFence_Single.gltf",
+        "stored_at":  "assets/game/environment/arena_outdoor/obstacles/env_obstacle_fence_wood_01.gltf",
+        "used_for":  [
+                         "arena_boundary",
+                         "arena_obstacle"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "env_obstacle_fence_wood_01",
+        "type":  "environment_buffer",
+        "source_pack":  "Medieval Village MegaKit [Standard]",
+        "license":  "CC0 1.0 (Quaternius Medieval Village MegaKit Free/Standard)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Medieval Village MegaKit\\Medieval Village MegaKit[Standard]\\glTF\\Prop_WoodenFence_Single.bin",
+        "stored_at":  "assets\\game\\environment\\arena_outdoor\\obstacles\\env_obstacle_fence_wood_01.bin",
+        "used_for":  [
+                         "arena_boundary",
+                         "arena_obstacle"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "env_obstacle_fence_wood_02",
+        "type":  "environment",
+        "source_pack":  "Medieval Village MegaKit [Standard]",
+        "license":  "CC0 1.0 (Quaternius Medieval Village MegaKit Free/Standard)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Medieval Village MegaKit\\Medieval Village MegaKit[Standard]\\glTF\\Prop_WoodenFence_Extension1.gltf",
+        "stored_at":  "assets/game/environment/arena_outdoor/obstacles/env_obstacle_fence_wood_02.gltf",
+        "used_for":  [
+                         "arena_boundary",
+                         "arena_obstacle"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "env_obstacle_fence_wood_02",
+        "type":  "environment_buffer",
+        "source_pack":  "Medieval Village MegaKit [Standard]",
+        "license":  "CC0 1.0 (Quaternius Medieval Village MegaKit Free/Standard)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Medieval Village MegaKit\\Medieval Village MegaKit[Standard]\\glTF\\Prop_WoodenFence_Extension1.bin",
+        "stored_at":  "assets\\game\\environment\\arena_outdoor\\obstacles\\env_obstacle_fence_wood_02.bin",
+        "used_for":  [
+                         "arena_boundary",
+                         "arena_obstacle"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "env_obstacle_wall_stone_01",
+        "type":  "environment",
+        "source_pack":  "Medieval Village MegaKit [Standard]",
+        "license":  "CC0 1.0 (Quaternius Medieval Village MegaKit Free/Standard)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Medieval Village MegaKit\\Medieval Village MegaKit[Standard]\\glTF\\Wall_UnevenBrick_Straight.gltf",
+        "stored_at":  "assets/game/environment/arena_outdoor/obstacles/env_obstacle_wall_stone_01.gltf",
+        "used_for":  [
+                         "arena_blocker",
+                         "arena_line_of_sight"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "env_obstacle_wall_stone_01",
+        "type":  "environment_buffer",
+        "source_pack":  "Medieval Village MegaKit [Standard]",
+        "license":  "CC0 1.0 (Quaternius Medieval Village MegaKit Free/Standard)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Medieval Village MegaKit\\Medieval Village MegaKit[Standard]\\glTF\\Wall_UnevenBrick_Straight.bin",
+        "stored_at":  "assets\\game\\environment\\arena_outdoor\\obstacles\\env_obstacle_wall_stone_01.bin",
+        "used_for":  [
+                         "arena_blocker",
+                         "arena_line_of_sight"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "env_prop_fence_metal_01",
+        "type":  "environment",
+        "source_pack":  "Medieval Village MegaKit [Standard]",
+        "license":  "CC0 1.0 (Quaternius Medieval Village MegaKit Free/Standard)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Medieval Village MegaKit\\Medieval Village MegaKit[Standard]\\glTF\\Prop_MetalFence_Simple.gltf",
+        "stored_at":  "assets/game/environment/arena_outdoor/props/env_prop_fence_metal_01.gltf",
+        "used_for":  [
+                         "arena_readability",
+                         "thematic_detail"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "env_prop_fence_metal_01",
+        "type":  "environment_buffer",
+        "source_pack":  "Medieval Village MegaKit [Standard]",
+        "license":  "CC0 1.0 (Quaternius Medieval Village MegaKit Free/Standard)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Medieval Village MegaKit\\Medieval Village MegaKit[Standard]\\glTF\\Prop_MetalFence_Simple.bin",
+        "stored_at":  "assets\\game\\environment\\arena_outdoor\\props\\env_prop_fence_metal_01.bin",
+        "used_for":  [
+                         "arena_readability",
+                         "thematic_detail"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "env_prop_archway_01",
+        "type":  "environment",
+        "source_pack":  "Medieval Village MegaKit [Standard]",
+        "license":  "CC0 1.0 (Quaternius Medieval Village MegaKit Free/Standard)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Medieval Village MegaKit\\Medieval Village MegaKit[Standard]\\glTF\\Wall_Arch.gltf",
+        "stored_at":  "assets/game/environment/arena_outdoor/props/env_prop_archway_01.gltf",
+        "used_for":  [
+                         "arena_landmark",
+                         "thematic_detail"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "env_prop_archway_01",
+        "type":  "environment_buffer",
+        "source_pack":  "Medieval Village MegaKit [Standard]",
+        "license":  "CC0 1.0 (Quaternius Medieval Village MegaKit Free/Standard)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Medieval Village MegaKit\\Medieval Village MegaKit[Standard]\\glTF\\Wall_Arch.bin",
+        "stored_at":  "assets\\game\\environment\\arena_outdoor\\props\\env_prop_archway_01.bin",
+        "used_for":  [
+                         "arena_landmark",
+                         "thematic_detail"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "env_prop_wall_timber_01",
+        "type":  "environment",
+        "source_pack":  "Medieval Village MegaKit [Standard]",
+        "license":  "CC0 1.0 (Quaternius Medieval Village MegaKit Free/Standard)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Medieval Village MegaKit\\Medieval Village MegaKit[Standard]\\glTF\\Wall_Plaster_WoodGrid.gltf",
+        "stored_at":  "assets/game/environment/arena_outdoor/props/env_prop_wall_timber_01.gltf",
+        "used_for":  [
+                         "arena_landmark",
+                         "thematic_detail"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "env_prop_wall_timber_01",
+        "type":  "environment_buffer",
+        "source_pack":  "Medieval Village MegaKit [Standard]",
+        "license":  "CC0 1.0 (Quaternius Medieval Village MegaKit Free/Standard)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Medieval Village MegaKit\\Medieval Village MegaKit[Standard]\\glTF\\Wall_Plaster_WoodGrid.bin",
+        "stored_at":  "assets\\game\\environment\\arena_outdoor\\props\\env_prop_wall_timber_01.bin",
+        "used_for":  [
+                         "arena_landmark",
+                         "thematic_detail"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "vfx_hit_slash_01",
+        "type":  "vfx",
+        "source_pack":  "Super Pixel Effects Gigapack",
+        "license":  "unTied Games pack license; attribution required; redistribution only as part of game/application product",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\vfx\\source_vfx\\spritesheet\\Impacts\\directional_impact_001\\directional_impact_001_small_blue\\spritesheet.png",
+        "stored_at":  "assets/game/vfx/hits/vfx_hit_slash_01.png",
+        "used_for":  [
+                         "basic_attack_hit"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "vfx_hit_slash_01_meta",
+        "type":  "vfx_metadata",
+        "source_pack":  "Super Pixel Effects Gigapack",
+        "license":  "unTied Games pack license; attribution required; redistribution only as part of game/application product",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\vfx\\source_vfx\\spritesheet\\Impacts\\directional_impact_001\\directional_impact_001_small_blue\\spritesheet.txt",
+        "stored_at":  "assets/game/vfx/hits/vfx_hit_slash_01.txt",
+        "used_for":  [
+                         "basic_attack_hit"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "vfx_hit_arcane_01",
+        "type":  "vfx",
+        "source_pack":  "Super Pixel Effects Gigapack",
+        "license":  "unTied Games pack license; attribution required; redistribution only as part of game/application product",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\vfx\\source_vfx\\spritesheet\\Impacts\\symmetrical_impact_003\\symmetrical_impact_003_small_yellow\\spritesheet.png",
+        "stored_at":  "assets/game/vfx/hits/vfx_hit_arcane_01.png",
+        "used_for":  [
+                         "spell_impact_minor"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "vfx_hit_arcane_01_meta",
+        "type":  "vfx_metadata",
+        "source_pack":  "Super Pixel Effects Gigapack",
+        "license":  "unTied Games pack license; attribution required; redistribution only as part of game/application product",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\vfx\\source_vfx\\spritesheet\\Impacts\\symmetrical_impact_003\\symmetrical_impact_003_small_yellow\\spritesheet.txt",
+        "stored_at":  "assets/game/vfx/hits/vfx_hit_arcane_01.txt",
+        "used_for":  [
+                         "spell_impact_minor"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "vfx_spell_cast_01",
+        "type":  "vfx",
+        "source_pack":  "Super Pixel Effects Gigapack",
+        "license":  "unTied Games pack license; attribution required; redistribution only as part of game/application product",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\vfx\\source_vfx\\spritesheet\\Sci-fi\\scifi_charge_up_001\\scifi_charge_up_001_small_yellow\\spritesheet.png",
+        "stored_at":  "assets/game/vfx/spells/vfx_spell_cast_01.png",
+        "used_for":  [
+                         "cast_start"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "vfx_spell_cast_01_meta",
+        "type":  "vfx_metadata",
+        "source_pack":  "Super Pixel Effects Gigapack",
+        "license":  "unTied Games pack license; attribution required; redistribution only as part of game/application product",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\vfx\\source_vfx\\spritesheet\\Sci-fi\\scifi_charge_up_001\\scifi_charge_up_001_small_yellow\\spritesheet.txt",
+        "stored_at":  "assets/game/vfx/spells/vfx_spell_cast_01.txt",
+        "used_for":  [
+                         "cast_start"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "vfx_spell_projectile_01",
+        "type":  "vfx",
+        "source_pack":  "Super Pixel Effects Gigapack",
+        "license":  "unTied Games pack license; attribution required; redistribution only as part of game/application product",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\vfx\\source_vfx\\spritesheet\\Magic Bursts\\round_light_burst_001\\round_light_burst_001_small_yellow\\spritesheet.png",
+        "stored_at":  "assets/game/vfx/spells/vfx_spell_projectile_01.png",
+        "used_for":  [
+                         "projectile_placeholder"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "vfx_spell_projectile_01_meta",
+        "type":  "vfx_metadata",
+        "source_pack":  "Super Pixel Effects Gigapack",
+        "license":  "unTied Games pack license; attribution required; redistribution only as part of game/application product",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\vfx\\source_vfx\\spritesheet\\Magic Bursts\\round_light_burst_001\\round_light_burst_001_small_yellow\\spritesheet.txt",
+        "stored_at":  "assets/game/vfx/spells/vfx_spell_projectile_01.txt",
+        "used_for":  [
+                         "projectile_placeholder"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "vfx_spell_impact_arcane_01",
+        "type":  "vfx",
+        "source_pack":  "Super Pixel Effects Gigapack",
+        "license":  "unTied Games pack license; attribution required; redistribution only as part of game/application product",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\vfx\\source_vfx\\spritesheet\\Lightning\\lightning_burst_003\\lightning_burst_003_small_violet\\spritesheet.png",
+        "stored_at":  "assets/game/vfx/spells/vfx_spell_impact_arcane_01.png",
+        "used_for":  [
+                         "spell_impact_arcane"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "vfx_spell_impact_arcane_01_meta",
+        "type":  "vfx_metadata",
+        "source_pack":  "Super Pixel Effects Gigapack",
+        "license":  "unTied Games pack license; attribution required; redistribution only as part of game/application product",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\vfx\\source_vfx\\spritesheet\\Lightning\\lightning_burst_003\\lightning_burst_003_small_violet\\spritesheet.txt",
+        "stored_at":  "assets/game/vfx/spells/vfx_spell_impact_arcane_01.txt",
+        "used_for":  [
+                         "spell_impact_arcane"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "vfx_spell_impact_support_01",
+        "type":  "vfx",
+        "source_pack":  "Super Pixel Effects Gigapack",
+        "license":  "unTied Games pack license; attribution required; redistribution only as part of game/application product",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\vfx\\source_vfx\\spritesheet\\Magic Bursts\\round_sparkle_burst_001\\round_sparkle_burst_001_small_blue\\spritesheet.png",
+        "stored_at":  "assets/game/vfx/spells/vfx_spell_impact_support_01.png",
+        "used_for":  [
+                         "spell_impact_support"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "vfx_spell_impact_support_01_meta",
+        "type":  "vfx_metadata",
+        "source_pack":  "Super Pixel Effects Gigapack",
+        "license":  "unTied Games pack license; attribution required; redistribution only as part of game/application product",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\vfx\\source_vfx\\spritesheet\\Magic Bursts\\round_sparkle_burst_001\\round_sparkle_burst_001_small_blue\\spritesheet.txt",
+        "stored_at":  "assets/game/vfx/spells/vfx_spell_impact_support_01.txt",
+        "used_for":  [
+                         "spell_impact_support"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "vfx_status_buff_01",
+        "type":  "vfx",
+        "source_pack":  "Super Pixel Effects Gigapack",
+        "license":  "unTied Games pack license; attribution required; redistribution only as part of game/application product",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\vfx\\source_vfx\\spritesheet\\Fantasy Spells\\spell_defense_up_001\\spell_defense_up_001_small_blue\\spritesheet.png",
+        "stored_at":  "assets/game/vfx/status/vfx_status_buff_01.png",
+        "used_for":  [
+                         "buff_status"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "vfx_status_buff_01_meta",
+        "type":  "vfx_metadata",
+        "source_pack":  "Super Pixel Effects Gigapack",
+        "license":  "unTied Games pack license; attribution required; redistribution only as part of game/application product",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\vfx\\source_vfx\\spritesheet\\Fantasy Spells\\spell_defense_up_001\\spell_defense_up_001_small_blue\\spritesheet.txt",
+        "stored_at":  "assets/game/vfx/status/vfx_status_buff_01.txt",
+        "used_for":  [
+                         "buff_status"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "vfx_status_downed_01",
+        "type":  "vfx",
+        "source_pack":  "Super Pixel Effects Gigapack",
+        "license":  "unTied Games pack license; attribution required; redistribution only as part of game/application product",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\vfx\\source_vfx\\spritesheet\\Symbols\\symbol_thumbs_down_001\\symbol_thumbs_down_001_small_red\\spritesheet.png",
+        "stored_at":  "assets/game/vfx/status/vfx_status_downed_01.png",
+        "used_for":  [
+                         "downed_state"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "vfx_status_downed_01_meta",
+        "type":  "vfx_metadata",
+        "source_pack":  "Super Pixel Effects Gigapack",
+        "license":  "unTied Games pack license; attribution required; redistribution only as part of game/application product",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\vfx\\source_vfx\\spritesheet\\Symbols\\symbol_thumbs_down_001\\symbol_thumbs_down_001_small_red\\spritesheet.txt",
+        "stored_at":  "assets/game/vfx/status/vfx_status_downed_01.txt",
+        "used_for":  [
+                         "downed_state"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "vfx_status_revive_01",
+        "type":  "vfx",
+        "source_pack":  "Super Pixel Effects Gigapack",
+        "license":  "unTied Games pack license; attribution required; redistribution only as part of game/application product",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\vfx\\source_vfx\\spritesheet\\Symbols\\symbol_thumbs_up_001\\symbol_thumbs_up_001_small_blue\\spritesheet.png",
+        "stored_at":  "assets/game/vfx/status/vfx_status_revive_01.png",
+        "used_for":  [
+                         "revive_state"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "vfx_status_revive_01_meta",
+        "type":  "vfx_metadata",
+        "source_pack":  "Super Pixel Effects Gigapack",
+        "license":  "unTied Games pack license; attribution required; redistribution only as part of game/application product",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\vfx\\source_vfx\\spritesheet\\Symbols\\symbol_thumbs_up_001\\symbol_thumbs_up_001_small_blue\\spritesheet.txt",
+        "stored_at":  "assets/game/vfx/status/vfx_status_revive_01.txt",
+        "used_for":  [
+                         "revive_state"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "vfx_status_warning_01",
+        "type":  "vfx",
+        "source_pack":  "Super Pixel Effects Gigapack",
+        "license":  "unTied Games pack license; attribution required; redistribution only as part of game/application product",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\vfx\\source_vfx\\spritesheet\\Symbols\\symbol_warning_001\\symbol_warning_001_small_yellow\\spritesheet.png",
+        "stored_at":  "assets/game/vfx/status/vfx_status_warning_01.png",
+        "used_for":  [
+                         "ground_target_marker",
+                         "warning_state"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "vfx_status_warning_01_meta",
+        "type":  "vfx_metadata",
+        "source_pack":  "Super Pixel Effects Gigapack",
+        "license":  "unTied Games pack license; attribution required; redistribution only as part of game/application product",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\vfx\\source_vfx\\spritesheet\\Symbols\\symbol_warning_001\\symbol_warning_001_small_yellow\\spritesheet.txt",
+        "stored_at":  "assets/game/vfx/status/vfx_status_warning_01.txt",
+        "used_for":  [
+                         "ground_target_marker",
+                         "warning_state"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "ui_frame_button_rect_01",
+        "type":  "ui",
+        "source_pack":  "kenney_ui_pack",
+        "license":  "CC0 1.0 (Kenney)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\kenney_ui-pack\\PNG\\Blue\\Default\\button_rectangle_depth_gradient.png",
+        "stored_at":  "assets/game/ui/frames/ui_frame_button_rect_01.png",
+        "used_for":  [
+                         "buttons",
+                         "panels"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "ui_frame_slot_01",
+        "type":  "ui",
+        "source_pack":  "kenney_ui_pack",
+        "license":  "CC0 1.0 (Kenney)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\kenney_ui-pack\\PNG\\Blue\\Default\\button_square_depth_gradient.png",
+        "stored_at":  "assets/game/ui/frames/ui_frame_slot_01.png",
+        "used_for":  [
+                         "hotbar_slots"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "ui_frame_order_button_01",
+        "type":  "ui",
+        "source_pack":  "kenney_ui_pack",
+        "license":  "CC0 1.0 (Kenney)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\kenney_ui-pack\\PNG\\Blue\\Default\\button_round_depth_gradient.png",
+        "stored_at":  "assets/game/ui/frames/ui_frame_order_button_01.png",
+        "used_for":  [
+                         "order_controls"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "ui_bar_back_01",
+        "type":  "ui",
+        "source_pack":  "kenney_ui_pack",
+        "license":  "CC0 1.0 (Kenney)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\kenney_ui-pack\\PNG\\Blue\\Default\\slide_horizontal_grey_section_wide.png",
+        "stored_at":  "assets/game/ui/frames/ui_bar_back_01.png",
+        "used_for":  [
+                         "health_bar",
+                         "resource_bar"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "ui_bar_fill_01",
+        "type":  "ui",
+        "source_pack":  "kenney_ui_pack",
+        "license":  "CC0 1.0 (Kenney)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\kenney_ui-pack\\PNG\\Blue\\Default\\slide_horizontal_color_section_wide.png",
+        "stored_at":  "assets/game/ui/frames/ui_bar_fill_01.png",
+        "used_for":  [
+                         "health_bar",
+                         "resource_bar"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "ui_toggle_box_01",
+        "type":  "ui",
+        "source_pack":  "kenney_ui_pack",
+        "license":  "CC0 1.0 (Kenney)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\kenney_ui-pack\\PNG\\Blue\\Default\\check_square_grey.png",
+        "stored_at":  "assets/game/ui/frames/ui_toggle_box_01.png",
+        "used_for":  [
+                         "rule_editor",
+                         "order_toggles"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "ui_toggle_box_checked_01",
+        "type":  "ui",
+        "source_pack":  "kenney_ui_pack",
+        "license":  "CC0 1.0 (Kenney)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\kenney_ui-pack\\PNG\\Blue\\Default\\check_square_grey_checkmark.png",
+        "stored_at":  "assets/game/ui/frames/ui_toggle_box_checked_01.png",
+        "used_for":  [
+                         "rule_editor",
+                         "order_toggles"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "ui_panel_basic_01",
+        "type":  "ui",
+        "source_pack":  "kenney_ui_pack",
+        "license":  "CC0 1.0 (Kenney)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\kenney_ui-pack\\PNG\\Blue\\Default\\button_rectangle_depth_line.png",
+        "stored_at":  "assets/game/ui/panels/ui_panel_basic_01.png",
+        "used_for":  [
+                         "companion_panel",
+                         "reward_panel",
+                         "rule_editor"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "ui_panel_fill_01",
+        "type":  "ui",
+        "source_pack":  "kenney_ui_pack",
+        "license":  "CC0 1.0 (Kenney)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\kenney_ui-pack\\PNG\\Blue\\Default\\button_rectangle_depth_flat.png",
+        "stored_at":  "assets/game/ui/panels/ui_panel_fill_01.png",
+        "used_for":  [
+                         "companion_panel",
+                         "reward_panel",
+                         "rule_editor"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "ui_icon_check_01",
+        "type":  "ui",
+        "source_pack":  "kenney_ui_pack",
+        "license":  "CC0 1.0 (Kenney)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\kenney_ui-pack\\PNG\\Blue\\Default\\icon_checkmark.png",
+        "stored_at":  "assets/game/ui/icons/ui_icon_check_01.png",
+        "used_for":  [
+                         "confirm",
+                         "ready"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "ui_icon_close_01",
+        "type":  "ui",
+        "source_pack":  "kenney_ui_pack",
+        "license":  "CC0 1.0 (Kenney)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\kenney_ui-pack\\PNG\\Blue\\Default\\icon_cross.png",
+        "stored_at":  "assets/game/ui/icons/ui_icon_close_01.png",
+        "used_for":  [
+                         "cancel",
+                         "error"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "ui_icon_circle_01",
+        "type":  "ui",
+        "source_pack":  "kenney_ui_pack",
+        "license":  "CC0 1.0 (Kenney)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\kenney_ui-pack\\PNG\\Blue\\Default\\icon_circle.png",
+        "stored_at":  "assets/game/ui/icons/ui_icon_circle_01.png",
+        "used_for":  [
+                         "basic_attack_slot"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "ui_icon_star_01",
+        "type":  "ui",
+        "source_pack":  "kenney_ui_pack",
+        "license":  "CC0 1.0 (Kenney)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\kenney_ui-pack\\PNG\\Blue\\Default\\star.png",
+        "stored_at":  "assets/game/ui/icons/ui_icon_star_01.png",
+        "used_for":  [
+                         "level_up",
+                         "reward_highlight"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "ui_icon_arrow_up_01",
+        "type":  "ui",
+        "source_pack":  "kenney_ui_pack",
+        "license":  "CC0 1.0 (Kenney)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\kenney_ui-pack\\PNG\\Extra\\Default\\icon_arrow_up_dark.png",
+        "stored_at":  "assets/game/ui/icons/ui_icon_arrow_up_01.png",
+        "used_for":  [
+                         "level_up",
+                         "priority_up"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "ui_icon_arrow_down_01",
+        "type":  "ui",
+        "source_pack":  "kenney_ui_pack",
+        "license":  "CC0 1.0 (Kenney)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\kenney_ui-pack\\PNG\\Extra\\Default\\icon_arrow_down_dark.png",
+        "stored_at":  "assets/game/ui/icons/ui_icon_arrow_down_01.png",
+        "used_for":  [
+                         "priority_down",
+                         "collapse"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "ui_icon_reward_weapon_sword_01",
+        "type":  "ui",
+        "source_pack":  "Items",
+        "license":  "License file not found in local pack folder; provenance limited to local downloaded pack name",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Items\\Items\\BrightDawn\\Brightdawn.png",
+        "stored_at":  "assets/game/ui/icons/ui_icon_reward_weapon_sword_01.png",
+        "used_for":  [
+                         "reward_choice",
+                         "weapon_tooltip"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "ui_icon_reward_weapon_axe_01",
+        "type":  "ui",
+        "source_pack":  "Items",
+        "license":  "License file not found in local pack folder; provenance limited to local downloaded pack name",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Items\\Items\\AXe\\Axe.png",
+        "stored_at":  "assets/game/ui/icons/ui_icon_reward_weapon_axe_01.png",
+        "used_for":  [
+                         "reward_choice",
+                         "weapon_tooltip"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "ui_icon_reward_shield_01",
+        "type":  "ui",
+        "source_pack":  "Items",
+        "license":  "License file not found in local pack folder; provenance limited to local downloaded pack name",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Items\\Items\\Shield\\Shield.png",
+        "stored_at":  "assets/game/ui/icons/ui_icon_reward_shield_01.png",
+        "used_for":  [
+                         "reward_choice",
+                         "defense_tooltip"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "ui_icon_reward_staff_01",
+        "type":  "ui",
+        "source_pack":  "Items",
+        "license":  "License file not found in local pack folder; provenance limited to local downloaded pack name",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Items\\Items\\Staff\\Staff.png",
+        "stored_at":  "assets/game/ui/icons/ui_icon_reward_staff_01.png",
+        "used_for":  [
+                         "reward_choice",
+                         "spell_tooltip"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "ui_marker_target_enemy_01",
+        "type":  "ui",
+        "source_pack":  "kenney_ui_pack",
+        "license":  "CC0 1.0 (Kenney)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\kenney_ui-pack\\PNG\\Red\\Default\\arrow_basic_n.png",
+        "stored_at":  "assets/game/ui/markers/ui_marker_target_enemy_01.png",
+        "used_for":  [
+                         "enemy_target_marker"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "ui_marker_target_ally_01",
+        "type":  "ui",
+        "source_pack":  "kenney_ui_pack",
+        "license":  "CC0 1.0 (Kenney)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\kenney_ui-pack\\PNG\\Green\\Default\\arrow_basic_n.png",
+        "stored_at":  "assets/game/ui/markers/ui_marker_target_ally_01.png",
+        "used_for":  [
+                         "ally_target_marker"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "ui_marker_order_move_01",
+        "type":  "ui",
+        "source_pack":  "kenney_ui_pack",
+        "license":  "CC0 1.0 (Kenney)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\kenney_ui-pack\\PNG\\Yellow\\Default\\arrow_basic_n_small.png",
+        "stored_at":  "assets/game/ui/markers/ui_marker_order_move_01.png",
+        "used_for":  [
+                         "move_order_marker"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "audio_hit_blade_01",
+        "type":  "audio_impact",
+        "source_pack":  "kenney_impact_sounds",
+        "license":  "CC0 1.0 (Kenney)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\kenney_impact-sounds\\Audio\\impactMetal_medium_001.ogg",
+        "stored_at":  "assets/game/audio/impacts/audio_hit_blade_01.ogg",
+        "used_for":  [
+                         "sword_hit"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "audio_hit_blunt_01",
+        "type":  "audio_impact",
+        "source_pack":  "kenney_impact_sounds",
+        "license":  "CC0 1.0 (Kenney)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\kenney_impact-sounds\\Audio\\impactWood_heavy_002.ogg",
+        "stored_at":  "assets/game/audio/impacts/audio_hit_blunt_01.ogg",
+        "used_for":  [
+                         "axe_hit",
+                         "obstacle_hit"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "audio_hit_body_01",
+        "type":  "audio_impact",
+        "source_pack":  "kenney_impact_sounds",
+        "license":  "CC0 1.0 (Kenney)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\kenney_impact-sounds\\Audio\\impactPunch_medium_002.ogg",
+        "stored_at":  "assets/game/audio/impacts/audio_hit_body_01.ogg",
+        "used_for":  [
+                         "unarmored_hit"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "audio_hit_ranged_01",
+        "type":  "audio_impact",
+        "source_pack":  "kenney_impact_sounds",
+        "license":  "CC0 1.0 (Kenney)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\kenney_impact-sounds\\Audio\\impactTin_medium_001.ogg",
+        "stored_at":  "assets/game/audio/impacts/audio_hit_ranged_01.ogg",
+        "used_for":  [
+                         "ranged_hit"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "audio_spell_arcane_impact_01",
+        "type":  "audio_spell",
+        "source_pack":  "kenney_impact_sounds",
+        "license":  "CC0 1.0 (Kenney)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\kenney_impact-sounds\\Audio\\impactBell_heavy_000.ogg",
+        "stored_at":  "assets/game/audio/spells/audio_spell_arcane_impact_01.ogg",
+        "used_for":  [
+                         "spell_impact_surrogate"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "audio_ui_confirm_01",
+        "type":  "audio_ui",
+        "source_pack":  "kenney_impact_sounds",
+        "license":  "CC0 1.0 (Kenney)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\kenney_impact-sounds\\Audio\\impactSoft_medium_001.ogg",
+        "stored_at":  "assets/game/audio/ui/audio_ui_confirm_01.ogg",
+        "used_for":  [
+                         "ui_confirm"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "audio_ui_cancel_01",
+        "type":  "audio_ui",
+        "source_pack":  "kenney_impact_sounds",
+        "license":  "CC0 1.0 (Kenney)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\kenney_impact-sounds\\Audio\\impactSoft_medium_003.ogg",
+        "stored_at":  "assets/game/audio/ui/audio_ui_cancel_01.ogg",
+        "used_for":  [
+                         "ui_cancel",
+                         "ui_error"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "audio_ui_levelup_01",
+        "type":  "audio_ui",
+        "source_pack":  "kenney_impact_sounds",
+        "license":  "CC0 1.0 (Kenney)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\kenney_impact-sounds\\Audio\\impactBell_heavy_003.ogg",
+        "stored_at":  "assets/game/audio/ui/audio_ui_levelup_01.ogg",
+        "used_for":  [
+                         "level_up",
+                         "reward_confirm"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "char_human_swordshield_01",
+        "type":  "character_body",
+        "source_pack":  "Sword and Shield Pack",
+        "license":  "License file not found in local pack folder; provenance limited to local downloaded pack name",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Sword and Shield Pack\\Ely By K.Atienza.fbx",
+        "stored_at":  "assets/game/characters/leader/char_human_swordshield_01.fbx",
+        "used_for":  [
+                         "leader",
+                         "enemy_tank_disruptor"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "anim_leader_swordshield_idle_01",
+        "type":  "character_animation",
+        "source_pack":  "Sword and Shield Pack",
+        "license":  "License file not found in local pack folder; provenance limited to local downloaded pack name",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Sword and Shield Pack\\sword and shield idle.fbx",
+        "stored_at":  "assets/game/characters/leader/anim_leader_swordshield_idle_01.fbx",
+        "used_for":  [
+                         "leader_idle",
+                         "enemy_tank_idle"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "anim_leader_swordshield_run_01",
+        "type":  "character_animation",
+        "source_pack":  "Sword and Shield Pack",
+        "license":  "License file not found in local pack folder; provenance limited to local downloaded pack name",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Sword and Shield Pack\\sword and shield run.fbx",
+        "stored_at":  "assets/game/characters/leader/anim_leader_swordshield_run_01.fbx",
+        "used_for":  [
+                         "leader_move",
+                         "enemy_tank_move"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "anim_leader_swordshield_attack_01",
+        "type":  "character_animation",
+        "source_pack":  "Sword and Shield Pack",
+        "license":  "License file not found in local pack folder; provenance limited to local downloaded pack name",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Sword and Shield Pack\\sword and shield slash.fbx",
+        "stored_at":  "assets/game/characters/leader/anim_leader_swordshield_attack_01.fbx",
+        "used_for":  [
+                         "leader_attack",
+                         "enemy_tank_attack"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "anim_leader_swordshield_block_01",
+        "type":  "character_animation",
+        "source_pack":  "Sword and Shield Pack",
+        "license":  "License file not found in local pack folder; provenance limited to local downloaded pack name",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Sword and Shield Pack\\sword and shield block idle.fbx",
+        "stored_at":  "assets/game/characters/leader/anim_leader_swordshield_block_01.fbx",
+        "used_for":  [
+                         "leader_guard",
+                         "enemy_tank_guard"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "anim_leader_swordshield_cast_01",
+        "type":  "character_animation",
+        "source_pack":  "Sword and Shield Pack",
+        "license":  "License file not found in local pack folder; provenance limited to local downloaded pack name",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Sword and Shield Pack\\sword and shield casting.fbx",
+        "stored_at":  "assets/game/characters/leader/anim_leader_swordshield_cast_01.fbx",
+        "used_for":  [
+                         "leader_spell_cast"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "anim_leader_swordshield_hit_01",
+        "type":  "character_animation",
+        "source_pack":  "Sword and Shield Pack",
+        "license":  "License file not found in local pack folder; provenance limited to local downloaded pack name",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Sword and Shield Pack\\sword and shield impact.fbx",
+        "stored_at":  "assets/game/characters/leader/anim_leader_swordshield_hit_01.fbx",
+        "used_for":  [
+                         "leader_hit",
+                         "enemy_tank_hit"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "anim_leader_swordshield_death_01",
+        "type":  "character_animation",
+        "source_pack":  "Sword and Shield Pack",
+        "license":  "License file not found in local pack folder; provenance limited to local downloaded pack name",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Sword and Shield Pack\\sword and shield death.fbx",
+        "stored_at":  "assets/game/characters/leader/anim_leader_swordshield_death_01.fbx",
+        "used_for":  [
+                         "leader_downed",
+                         "enemy_tank_downed"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "char_human_archer_01",
+        "type":  "character_body",
+        "source_pack":  "Pro Longbow Pack",
+        "license":  "License file not found in local pack folder; provenance limited to local downloaded pack name",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Pro Longbow Pack\\Erika Archer.fbx",
+        "stored_at":  "assets/game/characters/companions/char_human_archer_01.fbx",
+        "used_for":  [
+                         "companion_ranged",
+                         "enemy_ranged_caster"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "anim_archer_idle_01",
+        "type":  "character_animation",
+        "source_pack":  "Pro Longbow Pack",
+        "license":  "License file not found in local pack folder; provenance limited to local downloaded pack name",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Pro Longbow Pack\\standing idle 01.fbx",
+        "stored_at":  "assets/game/characters/companions/anim_archer_idle_01.fbx",
+        "used_for":  [
+                         "companion_ranged_idle",
+                         "enemy_ranged_idle"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "anim_archer_run_01",
+        "type":  "character_animation",
+        "source_pack":  "Pro Longbow Pack",
+        "license":  "License file not found in local pack folder; provenance limited to local downloaded pack name",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Pro Longbow Pack\\standing run forward.fbx",
+        "stored_at":  "assets/game/characters/companions/anim_archer_run_01.fbx",
+        "used_for":  [
+                         "companion_ranged_move",
+                         "enemy_ranged_move"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "anim_archer_draw_01",
+        "type":  "character_animation",
+        "source_pack":  "Pro Longbow Pack",
+        "license":  "License file not found in local pack folder; provenance limited to local downloaded pack name",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Pro Longbow Pack\\standing draw arrow.fbx",
+        "stored_at":  "assets/game/characters/companions/anim_archer_draw_01.fbx",
+        "used_for":  [
+                         "companion_ranged_prepare",
+                         "enemy_ranged_prepare"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "anim_archer_attack_01",
+        "type":  "character_animation",
+        "source_pack":  "Pro Longbow Pack",
+        "license":  "License file not found in local pack folder; provenance limited to local downloaded pack name",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Pro Longbow Pack\\standing aim overdraw.fbx",
+        "stored_at":  "assets/game/characters/companions/anim_archer_attack_01.fbx",
+        "used_for":  [
+                         "companion_ranged_attack",
+                         "enemy_ranged_attack"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "anim_archer_release_01",
+        "type":  "character_animation",
+        "source_pack":  "Pro Longbow Pack",
+        "license":  "License file not found in local pack folder; provenance limited to local downloaded pack name",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Pro Longbow Pack\\standing aim recoil.fbx",
+        "stored_at":  "assets/game/characters/companions/anim_archer_release_01.fbx",
+        "used_for":  [
+                         "companion_ranged_release",
+                         "enemy_ranged_release"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "anim_archer_hit_01",
+        "type":  "character_animation",
+        "source_pack":  "Pro Longbow Pack",
+        "license":  "License file not found in local pack folder; provenance limited to local downloaded pack name",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Pro Longbow Pack\\standing react small from front.fbx",
+        "stored_at":  "assets/game/characters/companions/anim_archer_hit_01.fbx",
+        "used_for":  [
+                         "companion_ranged_hit",
+                         "enemy_ranged_hit"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "anim_archer_death_01",
+        "type":  "character_animation",
+        "source_pack":  "Pro Longbow Pack",
+        "license":  "License file not found in local pack folder; provenance limited to local downloaded pack name",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Pro Longbow Pack\\standing death forward 01.fbx",
+        "stored_at":  "assets/game/characters/companions/anim_archer_death_01.fbx",
+        "used_for":  [
+                         "companion_ranged_downed",
+                         "enemy_ranged_downed"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "char_human_axe_01",
+        "type":  "character_body",
+        "source_pack":  "Pro Melee Axe Pack",
+        "license":  "License file not found in local pack folder; provenance limited to local downloaded pack name",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Pro Melee Axe Pack\\Eve By J.Gonzales.fbx",
+        "stored_at":  "assets/game/characters/enemies/char_human_axe_01.fbx",
+        "used_for":  [
+                         "enemy_melee_chaser",
+                         "companion_melee"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "anim_axe_idle_01",
+        "type":  "character_animation",
+        "source_pack":  "Pro Melee Axe Pack",
+        "license":  "License file not found in local pack folder; provenance limited to local downloaded pack name",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Pro Melee Axe Pack\\standing idle.fbx",
+        "stored_at":  "assets/game/characters/enemies/anim_axe_idle_01.fbx",
+        "used_for":  [
+                         "enemy_melee_idle",
+                         "companion_melee_idle"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "anim_axe_run_01",
+        "type":  "character_animation",
+        "source_pack":  "Pro Melee Axe Pack",
+        "license":  "License file not found in local pack folder; provenance limited to local downloaded pack name",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Pro Melee Axe Pack\\standing run forward.fbx",
+        "stored_at":  "assets/game/characters/enemies/anim_axe_run_01.fbx",
+        "used_for":  [
+                         "enemy_melee_move",
+                         "companion_melee_move"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "anim_axe_attack_01",
+        "type":  "character_animation",
+        "source_pack":  "Pro Melee Axe Pack",
+        "license":  "License file not found in local pack folder; provenance limited to local downloaded pack name",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Pro Melee Axe Pack\\standing melee attack horizontal.fbx",
+        "stored_at":  "assets/game/characters/enemies/anim_axe_attack_01.fbx",
+        "used_for":  [
+                         "enemy_melee_attack",
+                         "companion_melee_attack"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "anim_axe_attack_02",
+        "type":  "character_animation",
+        "source_pack":  "Pro Melee Axe Pack",
+        "license":  "License file not found in local pack folder; provenance limited to local downloaded pack name",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Pro Melee Axe Pack\\standing melee attack downward.fbx",
+        "stored_at":  "assets/game/characters/enemies/anim_axe_attack_02.fbx",
+        "used_for":  [
+                         "enemy_melee_attack_heavy"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "anim_axe_guard_01",
+        "type":  "character_animation",
+        "source_pack":  "Pro Melee Axe Pack",
+        "license":  "License file not found in local pack folder; provenance limited to local downloaded pack name",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Pro Melee Axe Pack\\standing block idle.fbx",
+        "stored_at":  "assets/game/characters/enemies/anim_axe_guard_01.fbx",
+        "used_for":  [
+                         "enemy_melee_guard"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "anim_axe_hit_01",
+        "type":  "character_animation",
+        "source_pack":  "Pro Melee Axe Pack",
+        "license":  "License file not found in local pack folder; provenance limited to local downloaded pack name",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\Pro Melee Axe Pack\\standing react large gut.fbx",
+        "stored_at":  "assets/game/characters/enemies/anim_axe_hit_01.fbx",
+        "used_for":  [
+                         "enemy_melee_hit",
+                         "companion_melee_hit"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "mat_weapon_kaykit_bits_01",
+        "type":  "weapon_texture",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\weapons_bits_texture.png",
+        "stored_at":  "assets/game/weapons/textures/mat_weapon_kaykit_bits_01.png",
+        "used_for":  [
+                         "all_curated_weapons"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_axe_battle_01",
+        "type":  "weapon",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\axe_A.gltf",
+        "stored_at":  "assets/game/weapons/melee/weapon_axe_battle_01.gltf",
+        "used_for":  [
+                         "enemy_melee",
+                         "companion_melee"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_axe_battle_01",
+        "type":  "weapon_buffer",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\axe_A.bin",
+        "stored_at":  "assets/game/weapons/melee/weapon_axe_battle_01.bin",
+        "used_for":  [
+                         "enemy_melee",
+                         "companion_melee"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_axe_double_01",
+        "type":  "weapon",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\axe_B.gltf",
+        "stored_at":  "assets/game/weapons/melee/weapon_axe_double_01.gltf",
+        "used_for":  [
+                         "enemy_melee_variant"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_axe_double_01",
+        "type":  "weapon_buffer",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\axe_B.bin",
+        "stored_at":  "assets/game/weapons/melee/weapon_axe_double_01.bin",
+        "used_for":  [
+                         "enemy_melee_variant"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_axe_heavy_01",
+        "type":  "weapon",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\axe_C.gltf",
+        "stored_at":  "assets/game/weapons/melee/weapon_axe_heavy_01.gltf",
+        "used_for":  [
+                         "enemy_tank_weapon"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_axe_heavy_01",
+        "type":  "weapon_buffer",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\axe_C.bin",
+        "stored_at":  "assets/game/weapons/melee/weapon_axe_heavy_01.bin",
+        "used_for":  [
+                         "enemy_tank_weapon"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_dagger_iron_01",
+        "type":  "weapon",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\dagger_A.gltf",
+        "stored_at":  "assets/game/weapons/melee/weapon_dagger_iron_01.gltf",
+        "used_for":  [
+                         "light_melee_variant"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_dagger_iron_01",
+        "type":  "weapon_buffer",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\dagger_A.bin",
+        "stored_at":  "assets/game/weapons/melee/weapon_dagger_iron_01.bin",
+        "used_for":  [
+                         "light_melee_variant"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_dagger_ritual_01",
+        "type":  "weapon",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\dagger_B.gltf",
+        "stored_at":  "assets/game/weapons/melee/weapon_dagger_ritual_01.gltf",
+        "used_for":  [
+                         "light_melee_variant"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_dagger_ritual_01",
+        "type":  "weapon_buffer",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\dagger_B.bin",
+        "stored_at":  "assets/game/weapons/melee/weapon_dagger_ritual_01.bin",
+        "used_for":  [
+                         "light_melee_variant"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_fist_claw_01",
+        "type":  "weapon",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\fistweapon_A.gltf",
+        "stored_at":  "assets/game/weapons/melee/weapon_fist_claw_01.gltf",
+        "used_for":  [
+                         "enemy_special_melee"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_fist_claw_01",
+        "type":  "weapon_buffer",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\fistweapon_A.bin",
+        "stored_at":  "assets/game/weapons/melee/weapon_fist_claw_01.bin",
+        "used_for":  [
+                         "enemy_special_melee"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_fist_claw_pair_01",
+        "type":  "weapon",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\fistweapon_A_stacked.gltf",
+        "stored_at":  "assets/game/weapons/melee/weapon_fist_claw_pair_01.gltf",
+        "used_for":  [
+                         "enemy_special_melee_dual"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_fist_claw_pair_01",
+        "type":  "weapon_buffer",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\fistweapon_A_stacked.bin",
+        "stored_at":  "assets/game/weapons/melee/weapon_fist_claw_pair_01.bin",
+        "used_for":  [
+                         "enemy_special_melee_dual"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_fist_knuckle_01",
+        "type":  "weapon",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\fistweapon_B.gltf",
+        "stored_at":  "assets/game/weapons/melee/weapon_fist_knuckle_01.gltf",
+        "used_for":  [
+                         "enemy_special_melee"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_fist_knuckle_01",
+        "type":  "weapon_buffer",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\fistweapon_B.bin",
+        "stored_at":  "assets/game/weapons/melee/weapon_fist_knuckle_01.bin",
+        "used_for":  [
+                         "enemy_special_melee"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_fist_knuckle_pair_01",
+        "type":  "weapon",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\fistweapon_B_stacked.gltf",
+        "stored_at":  "assets/game/weapons/melee/weapon_fist_knuckle_pair_01.gltf",
+        "used_for":  [
+                         "enemy_special_melee_dual"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_fist_knuckle_pair_01",
+        "type":  "weapon_buffer",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\fistweapon_B_stacked.bin",
+        "stored_at":  "assets/game/weapons/melee/weapon_fist_knuckle_pair_01.bin",
+        "used_for":  [
+                         "enemy_special_melee_dual"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_halberd_01",
+        "type":  "weapon",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\halberd.gltf",
+        "stored_at":  "assets/game/weapons/melee/weapon_halberd_01.gltf",
+        "used_for":  [
+                         "enemy_tank_reach"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_halberd_01",
+        "type":  "weapon_buffer",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\halberd.bin",
+        "stored_at":  "assets/game/weapons/melee/weapon_halberd_01.bin",
+        "used_for":  [
+                         "enemy_tank_reach"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_hammer_war_01",
+        "type":  "weapon",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\hammer_A.gltf",
+        "stored_at":  "assets/game/weapons/melee/weapon_hammer_war_01.gltf",
+        "used_for":  [
+                         "enemy_tank_weapon"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_hammer_war_01",
+        "type":  "weapon_buffer",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\hammer_A.bin",
+        "stored_at":  "assets/game/weapons/melee/weapon_hammer_war_01.bin",
+        "used_for":  [
+                         "enemy_tank_weapon"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_hammer_spike_01",
+        "type":  "weapon",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\hammer_B.gltf",
+        "stored_at":  "assets/game/weapons/melee/weapon_hammer_spike_01.gltf",
+        "used_for":  [
+                         "enemy_tank_weapon"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_hammer_spike_01",
+        "type":  "weapon_buffer",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\hammer_B.bin",
+        "stored_at":  "assets/game/weapons/melee/weapon_hammer_spike_01.bin",
+        "used_for":  [
+                         "enemy_tank_weapon"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_hammer_maul_01",
+        "type":  "weapon",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\hammer_C.gltf",
+        "stored_at":  "assets/game/weapons/melee/weapon_hammer_maul_01.gltf",
+        "used_for":  [
+                         "enemy_tank_weapon"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_hammer_maul_01",
+        "type":  "weapon_buffer",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\hammer_C.bin",
+        "stored_at":  "assets/game/weapons/melee/weapon_hammer_maul_01.bin",
+        "used_for":  [
+                         "enemy_tank_weapon"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_shield_round_01",
+        "type":  "weapon",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\shield_A.gltf",
+        "stored_at":  "assets/game/weapons/melee/weapon_shield_round_01.gltf",
+        "used_for":  [
+                         "leader_defense",
+                         "enemy_tank"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_shield_round_01",
+        "type":  "weapon_buffer",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\shield_A.bin",
+        "stored_at":  "assets/game/weapons/melee/weapon_shield_round_01.bin",
+        "used_for":  [
+                         "leader_defense",
+                         "enemy_tank"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_shield_kite_01",
+        "type":  "weapon",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\shield_B.gltf",
+        "stored_at":  "assets/game/weapons/melee/weapon_shield_kite_01.gltf",
+        "used_for":  [
+                         "leader_defense_variant"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_shield_kite_01",
+        "type":  "weapon_buffer",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\shield_B.bin",
+        "stored_at":  "assets/game/weapons/melee/weapon_shield_kite_01.bin",
+        "used_for":  [
+                         "leader_defense_variant"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_shield_tower_01",
+        "type":  "weapon",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\shield_C.gltf",
+        "stored_at":  "assets/game/weapons/melee/weapon_shield_tower_01.gltf",
+        "used_for":  [
+                         "enemy_tank_defense"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_shield_tower_01",
+        "type":  "weapon_buffer",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\shield_C.bin",
+        "stored_at":  "assets/game/weapons/melee/weapon_shield_tower_01.bin",
+        "used_for":  [
+                         "enemy_tank_defense"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_spear_01",
+        "type":  "weapon",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\spear_A.gltf",
+        "stored_at":  "assets/game/weapons/melee/weapon_spear_01.gltf",
+        "used_for":  [
+                         "enemy_reach_melee"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_spear_01",
+        "type":  "weapon_buffer",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\spear_A.bin",
+        "stored_at":  "assets/game/weapons/melee/weapon_spear_01.bin",
+        "used_for":  [
+                         "enemy_reach_melee"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_sword_short_01",
+        "type":  "weapon",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\sword_A.gltf",
+        "stored_at":  "assets/game/weapons/melee/weapon_sword_short_01.gltf",
+        "used_for":  [
+                         "companion_melee_variant"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_sword_short_01",
+        "type":  "weapon_buffer",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\sword_A.bin",
+        "stored_at":  "assets/game/weapons/melee/weapon_sword_short_01.bin",
+        "used_for":  [
+                         "companion_melee_variant"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_sword_broadsword_01",
+        "type":  "weapon",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\sword_B.gltf",
+        "stored_at":  "assets/game/weapons/melee/weapon_sword_broadsword_01.gltf",
+        "used_for":  [
+                         "leader_melee"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_sword_broadsword_01",
+        "type":  "weapon_buffer",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\sword_B.bin",
+        "stored_at":  "assets/game/weapons/melee/weapon_sword_broadsword_01.bin",
+        "used_for":  [
+                         "leader_melee"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_sword_long_01",
+        "type":  "weapon",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\sword_C.gltf",
+        "stored_at":  "assets/game/weapons/melee/weapon_sword_long_01.gltf",
+        "used_for":  [
+                         "leader_melee_variant"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_sword_long_01",
+        "type":  "weapon_buffer",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\sword_C.bin",
+        "stored_at":  "assets/game/weapons/melee/weapon_sword_long_01.bin",
+        "used_for":  [
+                         "leader_melee_variant"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_sword_saber_01",
+        "type":  "weapon",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\sword_D.gltf",
+        "stored_at":  "assets/game/weapons/melee/weapon_sword_saber_01.gltf",
+        "used_for":  [
+                         "companion_melee_variant"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_sword_saber_01",
+        "type":  "weapon_buffer",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\sword_D.bin",
+        "stored_at":  "assets/game/weapons/melee/weapon_sword_saber_01.bin",
+        "used_for":  [
+                         "companion_melee_variant"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_sword_great_01",
+        "type":  "weapon",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\sword_E.gltf",
+        "stored_at":  "assets/game/weapons/melee/weapon_sword_great_01.gltf",
+        "used_for":  [
+                         "enemy_tank_weapon"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_sword_great_01",
+        "type":  "weapon_buffer",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\sword_E.bin",
+        "stored_at":  "assets/game/weapons/melee/weapon_sword_great_01.bin",
+        "used_for":  [
+                         "enemy_tank_weapon"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_arrow_01",
+        "type":  "weapon",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\arrow_A.gltf",
+        "stored_at":  "assets/game/weapons/ranged/weapon_arrow_01.gltf",
+        "used_for":  [
+                         "bow_projectile"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_arrow_01",
+        "type":  "weapon_buffer",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\arrow_A.bin",
+        "stored_at":  "assets/game/weapons/ranged/weapon_arrow_01.bin",
+        "used_for":  [
+                         "bow_projectile"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_arrow_02",
+        "type":  "weapon",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\arrow_B.gltf",
+        "stored_at":  "assets/game/weapons/ranged/weapon_arrow_02.gltf",
+        "used_for":  [
+                         "bow_projectile_variant"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_arrow_02",
+        "type":  "weapon_buffer",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\arrow_B.bin",
+        "stored_at":  "assets/game/weapons/ranged/weapon_arrow_02.bin",
+        "used_for":  [
+                         "bow_projectile_variant"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_bow_short_01",
+        "type":  "weapon",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\bow_A.gltf",
+        "stored_at":  "assets/game/weapons/ranged/weapon_bow_short_01.gltf",
+        "used_for":  [
+                         "companion_ranged_variant"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_bow_short_01",
+        "type":  "weapon_buffer",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\bow_A.bin",
+        "stored_at":  "assets/game/weapons/ranged/weapon_bow_short_01.bin",
+        "used_for":  [
+                         "companion_ranged_variant"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_bow_short_string_01",
+        "type":  "weapon",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\bow_A_withString.gltf",
+        "stored_at":  "assets/game/weapons/ranged/weapon_bow_short_string_01.gltf",
+        "used_for":  [
+                         "companion_ranged",
+                         "enemy_ranged_caster"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_bow_short_string_01",
+        "type":  "weapon_buffer",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\bow_A_withString.bin",
+        "stored_at":  "assets/game/weapons/ranged/weapon_bow_short_string_01.bin",
+        "used_for":  [
+                         "companion_ranged",
+                         "enemy_ranged_caster"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_bow_long_01",
+        "type":  "weapon",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\bow_B.gltf",
+        "stored_at":  "assets/game/weapons/ranged/weapon_bow_long_01.gltf",
+        "used_for":  [
+                         "companion_ranged_variant"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_bow_long_01",
+        "type":  "weapon_buffer",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\bow_B.bin",
+        "stored_at":  "assets/game/weapons/ranged/weapon_bow_long_01.bin",
+        "used_for":  [
+                         "companion_ranged_variant"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_bow_long_string_01",
+        "type":  "weapon",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\bow_B_withString.gltf",
+        "stored_at":  "assets/game/weapons/ranged/weapon_bow_long_string_01.gltf",
+        "used_for":  [
+                         "leader_ranged_option",
+                         "companion_ranged"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_bow_long_string_01",
+        "type":  "weapon_buffer",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\bow_B_withString.bin",
+        "stored_at":  "assets/game/weapons/ranged/weapon_bow_long_string_01.bin",
+        "used_for":  [
+                         "leader_ranged_option",
+                         "companion_ranged"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_staff_01",
+        "type":  "weapon",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\staff_A.gltf",
+        "stored_at":  "assets/game/weapons/ranged/weapon_staff_01.gltf",
+        "used_for":  [
+                         "enemy_caster",
+                         "reward_option"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_staff_01",
+        "type":  "weapon_buffer",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\staff_A.bin",
+        "stored_at":  "assets/game/weapons/ranged/weapon_staff_01.bin",
+        "used_for":  [
+                         "enemy_caster",
+                         "reward_option"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_staff_02",
+        "type":  "weapon",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\staff_B.gltf",
+        "stored_at":  "assets/game/weapons/ranged/weapon_staff_02.gltf",
+        "used_for":  [
+                         "enemy_caster_variant",
+                         "reward_option"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_staff_02",
+        "type":  "weapon_buffer",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\staff_B.bin",
+        "stored_at":  "assets/game/weapons/ranged/weapon_staff_02.bin",
+        "used_for":  [
+                         "enemy_caster_variant",
+                         "reward_option"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_wand_01",
+        "type":  "weapon",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\wand_A.gltf",
+        "stored_at":  "assets/game/weapons/ranged/weapon_wand_01.gltf",
+        "used_for":  [
+                         "enemy_caster_sidearm",
+                         "reward_option"
+                     ],
+        "status":  "approved_v0"
+    },
+    {
+        "id":  "weapon_wand_01",
+        "type":  "weapon_buffer",
+        "source_pack":  "KayKit Fantasy Weapons Bits 1.0 FREE",
+        "license":  "CC0 1.0 (KayKit Fantasy Weapons Bits 1.0 FREE)",
+        "source_original_path":  "C:\\Users\\Thomas\\Desktop\\0.biblio\\projet code\\Combat3d_browser\\assetsv0\\weapons\\KayKit_FantasyWeaponsBits_1.0_FREE\\Assets\\gltf\\wand_A.bin",
+        "stored_at":  "assets/game/weapons/ranged/weapon_wand_01.bin",
+        "used_for":  [
+                         "enemy_caster_sidearm",
+                         "reward_option"
+                     ],
+        "status":  "approved_v0"
+    }
+]

@@ -50,3 +50,5 @@ renders/
 # large archives and dumps not meant for source control
 dump/
 backups/
+
+assetsv0/
