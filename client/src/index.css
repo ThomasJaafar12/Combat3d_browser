@@ -84,6 +84,70 @@ body {
   font-size: 0.92rem;
 }
 
+.button-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 10px;
+}
+
+.action-button,
+.unit-button {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid rgba(77, 55, 31, 0.16);
+  border-radius: 14px;
+  background: rgba(255, 252, 245, 0.95);
+  color: #2b2018;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease,
+    border-color 120ms ease;
+}
+
+.action-button:hover,
+.unit-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(70, 43, 21, 0.08);
+  border-color: rgba(77, 55, 31, 0.28);
+}
+
+.action-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.56;
+  transform: none;
+  box-shadow: none;
+}
+
+.unit-list {
+  display: grid;
+  gap: 8px;
+}
+
+.unit-list li {
+  padding: 0;
+  background: none;
+  border: 0;
+}
+
+.unit-button {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.unit-button strong {
+  white-space: nowrap;
+}
+
+.section-note {
+  margin: 0 0 12px;
+  color: #6d5844;
+  font-size: 0.9rem;
+}
+
 .viewport-shell {
   min-height: 100vh;
 }

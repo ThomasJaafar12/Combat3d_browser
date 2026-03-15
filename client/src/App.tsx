@@ -1,24 +1,82 @@
 import { Canvas } from "@react-three/fiber";
 import { Float, Grid, OrbitControls, Text } from "@react-three/drei";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { featureFlags } from "@/config/featureFlags";
 import { assetAudit } from "@/game/assetAudit";
-import { catalogSummary } from "@/game/content";
+import { catalogSummary, prototypeCatalog } from "@/game/content";
+import { createCombatAuthority, reviveChannelMs } from "@/game/engine";
+import type { CombatSnapshot } from "@/game/runtime";
+
+const summarizeSnapshot = (snapshot: CombatSnapshot) => {
+  const leader = snapshot.units.find((unit) => unit.id === snapshot.leaderId);
+  const livingEnemies = snapshot.units.filter((unit) => unit.faction === "enemy" && !unit.isDead);
+  const companions = snapshot.units.filter(
+    (unit) => unit.faction === "leader_party" && unit.id !== snapshot.leaderId,
+  );
+
+  return {
+    mode: snapshot.phase,
+    phase: snapshot.phase,
+    timeMs: Math.round(snapshot.timeMs),
+    leader: leader
+      ? {
+          hp: Math.round(leader.currentHp),
+          resource: Math.round(leader.currentResource),
+          loadout: [...leader.loadoutSpellIds],
+        }
+      : null,
+    selectedTargetId: snapshot.selectedTargetId,
+    livingEnemies: livingEnemies.length,
+    companions: companions.map((unit) => ({
+      id: unit.id,
+      name: unit.name,
+      hp: Math.round(unit.currentHp),
+      downed: unit.isDowned,
+      dead: unit.isDead,
+      order: unit.order.orderId,
+      behavior: unit.behavior.profileId,
+    })),
+    rewardsPending: snapshot.rewardChoices.pendingSelection,
+    rewardChoices: snapshot.rewardChoices.choices,
+    catalogSummary,
+  };
+};
 
 function App() {
+  const authorityRef = useRef(createCombatAuthority());
+  const authority = authorityRef.current;
+  const [snapshot, setSnapshot] = useState(() => authority.getSnapshot());
+
+  useEffect(() => {
+    return authority.subscribe(setSnapshot);
+  }, [authority]);
+
+  useEffect(() => {
+    let frameId = 0;
+    let previousTime = performance.now();
+
+    const tick = (now: number) => {
+      const deltaMs = Math.min(50, now - previousTime);
+      previousTime = now;
+      authority.advanceTime(deltaMs);
+      frameId = window.requestAnimationFrame(tick);
+    };
+
+    frameId = window.requestAnimationFrame(tick);
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [authority]);
+
   useEffect(() => {
     const renderGameToText = () =>
       JSON.stringify({
-        mode: "scaffold",
-        note: "Commit 1 placeholder scene",
         featureFlags,
         assetAudit,
-        catalogSummary,
+        ...summarizeSnapshot(authority.getSnapshot()),
       });
 
-    const advanceTime = (_ms: number) => {
-      return;
-    };
+    const advanceTime = (ms: number) => authority.advanceTime(ms);
 
     Object.assign(window, {
       render_game_to_text: renderGameToText,
@@ -29,18 +87,66 @@ function App() {
       delete (window as Window & { render_game_to_text?: () => string }).render_game_to_text;
       delete (window as Window & { advanceTime?: (ms: number) => void }).advanceTime;
     };
-  }, []);
+  }, [authority]);
+
+  const leader = snapshot.units.find((unit) => unit.id === snapshot.leaderId) ?? null;
+  const selectedTarget =
+    snapshot.units.find((unit) => unit.id === snapshot.selectedTargetId) ?? null;
+  const recruitOptions = snapshot.recruitableCompanions.map((definitionId) => prototypeCatalog.units[definitionId]);
+  const loadoutNames = snapshot.activeLoadoutIds.map((spellId) => prototypeCatalog.spells[spellId].name);
+  const orderedUnits = [...snapshot.units].sort((left, right) => {
+    if (left.id === snapshot.leaderId) {
+      return -1;
+    }
+    if (right.id === snapshot.leaderId) {
+      return 1;
+    }
+    if (left.faction !== right.faction) {
+      return left.faction === "leader_party" ? -1 : 1;
+    }
+    return left.name.localeCompare(right.name);
+  });
 
   return (
     <div className="app-shell">
       <aside className="boot-panel">
-        <p className="eyebrow">Commit 1 scaffold</p>
+        <p className="eyebrow">Commit 3 authority foundation</p>
         <h1>Combat Prototype V0</h1>
         <p>
-          The runtime scaffold is in place. Next commits replace this placeholder with the
-          authoritative combat simulation, third-person controls, spell loadouts, companion
-          orders, and the wave encounter loop.
+          Combat state now lives behind an authority layer. The UI is still a debug-heavy shell,
+          but leader state, recruit flow, battle start, reward gating, cooldown ticking, downed
+          transitions, and combat resources are no longer static.
         </p>
+
+        <section>
+          <h2>Authority state</h2>
+          <ul>
+            <li>
+              <span>Phase</span>
+              <strong>{snapshot.phase}</strong>
+            </li>
+            <li>
+              <span>Wave</span>
+              <strong>{snapshot.waveNumber}</strong>
+            </li>
+            <li>
+              <span>XP / level</span>
+              <strong>
+                {snapshot.totalXp} / {snapshot.level}
+              </strong>
+            </li>
+            <li>
+              <span>Leader HP / resource</span>
+              <strong>
+                {leader ? `${Math.round(leader.currentHp)} / ${Math.round(leader.currentResource)}` : "n/a"}
+              </strong>
+            </li>
+            <li>
+              <span>Selected target</span>
+              <strong>{selectedTarget?.name ?? "none"}</strong>
+            </li>
+          </ul>
+        </section>
 
         <section>
           <h2>Feature flags</h2>
@@ -55,15 +161,6 @@ function App() {
         </section>
 
         <section>
-          <h2>Curated asset anchors</h2>
-          <ul>
-            <li>Leader: {assetAudit.characters.leader}</li>
-            <li>Companion: {assetAudit.characters.companion}</li>
-            <li>Enemy: {assetAudit.characters.enemy}</li>
-          </ul>
-        </section>
-
-        <section>
           <h2>Shared content snapshot</h2>
           <ul>
             <li>Units: {catalogSummary.unitCount}</li>
@@ -73,6 +170,138 @@ function App() {
             <li>Orders: {catalogSummary.orderCount}</li>
             <li>Rewards: {catalogSummary.rewardCount}</li>
           </ul>
+        </section>
+
+        <section>
+          <h2>Loadout</h2>
+          <p className="section-note">Leader spellbook has {catalogSummary.leaderSpellbookSlots} active slots.</p>
+          <ul>
+            {loadoutNames.map((name) => (
+              <li key={name}>
+                <span>{name}</span>
+                <strong>equipped</strong>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section>
+          <h2>Recruit</h2>
+          <div className="button-grid">
+            {recruitOptions.map((unit) => (
+              <button
+                key={unit.id}
+                className="action-button"
+                onClick={() => {
+                  authority.recruitCompanion(unit.id);
+                }}
+              >
+                {unit.recruitmentLabel ?? unit.name}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <h2>Debug actions</h2>
+          <div className="button-grid">
+            <button
+              className="action-button"
+              onClick={() => {
+                authority.startBattle();
+              }}
+            >
+              Start battle
+            </button>
+            <button
+              className="action-button"
+              onClick={() => {
+                authority.applyDamage(snapshot.leaderId, 18, selectedTarget?.id ?? null);
+              }}
+            >
+              Damage leader
+            </button>
+            <button
+              className="action-button"
+              disabled={!selectedTarget}
+              onClick={() => {
+                if (selectedTarget) {
+                  authority.applyDamage(selectedTarget.id, 20, snapshot.leaderId);
+                }
+              }}
+            >
+              Damage target
+            </button>
+            <button
+              className="action-button"
+              onClick={() => {
+                authority.applyShield(snapshot.leaderId, 24);
+              }}
+            >
+              Shield leader
+            </button>
+            <button
+              className="action-button"
+              onClick={() => {
+                authority.grantXp(100);
+              }}
+            >
+              Grant XP
+            </button>
+            <button
+              className="action-button"
+              onClick={() => {
+                authority.resetEncounter();
+              }}
+            >
+              Reset
+            </button>
+          </div>
+        </section>
+
+        {snapshot.rewardChoices.pendingSelection ? (
+          <section>
+            <h2>Reward choices</h2>
+            <div className="button-grid">
+              {snapshot.rewardChoices.choices.map((rewardId) => (
+                <button
+                  key={rewardId}
+                  className="action-button"
+                  onClick={() => {
+                    authority.chooseReward(rewardId);
+                  }}
+                >
+                  {prototypeCatalog.rewards[rewardId].name}
+                </button>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        <section>
+          <h2>Units</h2>
+          <ul className="unit-list">
+            {orderedUnits.map((unit) => (
+              <li key={unit.id}>
+                <button
+                  className="unit-button"
+                  onClick={() => {
+                    authority.setSelectedTarget(unit.id === snapshot.selectedTargetId ? null : unit.id);
+                  }}
+                >
+                  <span>
+                    {unit.name}
+                    {unit.id === snapshot.leaderId ? " (Leader)" : ""}
+                  </span>
+                  <strong>
+                    {Math.round(unit.currentHp)} HP
+                    {unit.isDowned ? " downed" : unit.isDead ? " dead" : ""}
+                  </strong>
+                </button>
+              </li>
+            ))}
+          </ul>
+          <p className="section-note">Revive channel target: {Math.round(reviveChannelMs / 1000)}s</p>
         </section>
       </aside>
 
@@ -120,7 +349,7 @@ function App() {
             position={[0, 5.45, 0]}
             textAlign="center"
           >
-            Authority scaffold online
+            {snapshot.phase === "battle" ? "Authority ticking" : "Authority staged"}
           </Text>
           <OrbitControls enablePan={false} minDistance={7} maxDistance={18} target={[0, 1.5, 0]} />
         </Canvas>

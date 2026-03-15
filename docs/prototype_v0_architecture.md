@@ -10,6 +10,7 @@
 - V0 will keep gameplay state in one authoritative simulation module.
 - React components will render snapshots and submit intents only.
 - This preserves a clean handoff to a future network transport or SpacetimeDB-backed server.
+  The current implementation lives in `client/src/game/engine.ts` and exposes subscribe/getSnapshot/mutation APIs.
 
 ## Spell pipeline overview
 - Planned path: input intent -> validation -> target resolution -> shared effect application -> feedback event emission.

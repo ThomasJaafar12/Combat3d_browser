@@ -14,7 +14,10 @@ Original prompt: Build a 3D in-browser RPG combat prototype with a leader, three
 - Added centralized curated asset URL bindings so the upcoming runtime can consume existing assets without duplicating them.
 - Added the first V0 content catalog: 7 units, 7 weapons, 9 spells, 7 statuses, 6 orders, 6 rewards, and 3 behavior profiles.
 - Updated `render_game_to_text` to expose the shared catalog summary for browser verification.
+- Added runtime math helpers, arena/map data, and the first authoritative combat engine class.
+- The app shell now subscribes to live authority snapshots instead of rendering only static scaffold text.
+- Engine foundation covers encounter reset, recruit/start-battle flows, HP/resource/cooldown ticking, shield/status upkeep, downed/death transitions, XP gain, and reward choice gating.
 
 ## TODO
-- Implement the authoritative combat engine core before presentation features.
 - Replace the placeholder scene with the actual encounter map and third-person controller.
+- Layer player combat actions, spell casting, and scene interactions onto the authority runtime.
