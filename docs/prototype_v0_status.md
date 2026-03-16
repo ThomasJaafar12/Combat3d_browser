@@ -37,10 +37,21 @@
 - In the scene, use `WASD` or arrow keys to move, right-drag to orbit the camera, left-click enemies to select/basic-attack, press `1-3` to arm spells, and press `R` to revive a downed companion in range.
 - Run the Playwright client against `http://127.0.0.1:5173` with `#start-battle` as the click selector for the current automated smoke path.
 
+## Setup / run
+- `cd client`
+- `npm.cmd install`
+- `npm.cmd run dev`
+- Open `http://127.0.0.1:5173`
+
 ## Next recommended steps
 - Replace primitive scene meshes with curated character/environment assets where practical.
 - Add clearer HUD/readability for cooldowns, companion states, and applied rewards.
 - Expand automated smoke coverage to recruit companions and exercise scoped orders/behavior changes before battle.
+
+## Known issues
+- The scene currently renders primitive meshes instead of the curated FBX/GLTF models, so presentation is functional rather than polished.
+- Camera readability is improved but still needs another pass for obstacle-heavy angles and wider battlefield framing.
+- The current automated smoke path starts the battle and advances time, but it does not yet automate companion recruiting or scoped-order changes through the side panel.
 
 ## Commit notes
 - Commit 1: audited the repo, confirmed the assets-only branch state, mapped the curated asset set, scaffolded the client runtime, added feature flags, and initialized the required docs.
