@@ -1,10 +1,12 @@
 import { Canvas } from "@react-three/fiber";
-import { Float, Grid, OrbitControls, Text } from "@react-three/drei";
 import { useEffect, useRef, useState } from "react";
+import { CombatScene } from "@/components/CombatScene";
 import { featureFlags } from "@/config/featureFlags";
 import { assetAudit } from "@/game/assetAudit";
 import { catalogSummary, prototypeCatalog } from "@/game/content";
 import { createCombatAuthority, reviveChannelMs } from "@/game/engine";
+import type { SpellId } from "@/game/defs";
+import { normalize2D, subVec3, vec3, yawToDirection } from "@/game/math";
 import type { CombatSnapshot } from "@/game/runtime";
 
 const summarizeSnapshot = (snapshot: CombatSnapshot) => {
@@ -23,6 +25,10 @@ const summarizeSnapshot = (snapshot: CombatSnapshot) => {
           hp: Math.round(leader.currentHp),
           resource: Math.round(leader.currentResource),
           loadout: [...leader.loadoutSpellIds],
+          position: {
+            x: Math.round(leader.position.x * 10) / 10,
+            z: Math.round(leader.position.z * 10) / 10,
+          },
         }
       : null,
     selectedTargetId: snapshot.selectedTargetId,
@@ -30,11 +36,18 @@ const summarizeSnapshot = (snapshot: CombatSnapshot) => {
     companions: companions.map((unit) => ({
       id: unit.id,
       name: unit.name,
+      position: { x: Math.round(unit.position.x * 10) / 10, z: Math.round(unit.position.z * 10) / 10 },
       hp: Math.round(unit.currentHp),
       downed: unit.isDowned,
       dead: unit.isDead,
       order: unit.order.orderId,
       behavior: unit.behavior.profileId,
+    })),
+    enemies: livingEnemies.map((unit) => ({
+      id: unit.id,
+      name: unit.name,
+      position: { x: Math.round(unit.position.x * 10) / 10, z: Math.round(unit.position.z * 10) / 10 },
+      hp: Math.round(unit.currentHp),
     })),
     rewardsPending: snapshot.rewardChoices.pendingSelection,
     rewardChoices: snapshot.rewardChoices.choices,
@@ -46,10 +59,41 @@ function App() {
   const authorityRef = useRef(createCombatAuthority());
   const authority = authorityRef.current;
   const [snapshot, setSnapshot] = useState(() => authority.getSnapshot());
+  const snapshotRef = useRef(snapshot);
+  const [armedSpellSlot, setArmedSpellSlot] = useState<number | null>(null);
+  const armedSpellSlotRef = useRef<number | null>(null);
+  const [editingLoadoutSlot, setEditingLoadoutSlot] = useState(0);
+  const [orderScope, setOrderScope] = useState<"all" | "frontline" | "backline" | "support" | "alpha" | "bravo">("all");
+  const movementKeysRef = useRef({
+    KeyW: false,
+    KeyA: false,
+    KeyS: false,
+    KeyD: false,
+    ArrowUp: false,
+    ArrowLeft: false,
+    ArrowDown: false,
+    ArrowRight: false,
+  });
+  const cameraOrbitRef = useRef({
+    yaw: Math.PI,
+    pitch: 0.72,
+    distance: 14,
+    dragging: false,
+    lastClientX: 0,
+    lastClientY: 0,
+  });
 
   useEffect(() => {
     return authority.subscribe(setSnapshot);
   }, [authority]);
+
+  useEffect(() => {
+    snapshotRef.current = snapshot;
+  }, [snapshot]);
+
+  useEffect(() => {
+    armedSpellSlotRef.current = armedSpellSlot;
+  }, [armedSpellSlot]);
 
   useEffect(() => {
     let frameId = 0;
@@ -58,6 +102,13 @@ function App() {
     const tick = (now: number) => {
       const deltaMs = Math.min(50, now - previousTime);
       previousTime = now;
+      const input = movementKeysRef.current;
+      const moveIntent = vec3(
+        (input.KeyD || input.ArrowRight ? 1 : 0) - (input.KeyA || input.ArrowLeft ? 1 : 0),
+        0,
+        (input.KeyS || input.ArrowDown ? 1 : 0) - (input.KeyW || input.ArrowUp ? 1 : 0),
+      );
+      authority.setPlayerIntent(moveIntent, cameraOrbitRef.current.yaw);
       authority.advanceTime(deltaMs);
       frameId = window.requestAnimationFrame(tick);
     };
@@ -89,11 +140,77 @@ function App() {
     };
   }, [authority]);
 
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.code in movementKeysRef.current) {
+        movementKeysRef.current[event.code as keyof typeof movementKeysRef.current] = true;
+      }
+
+      if (event.repeat) {
+        return;
+      }
+
+      const liveSnapshot = snapshotRef.current;
+      if (event.code === "Escape") {
+        setArmedSpellSlot(null);
+        return;
+      }
+
+      if (event.code === "Digit1" || event.code === "Digit2" || event.code === "Digit3") {
+        const slotIndex = Number(event.code.replace("Digit", "")) - 1;
+        const spellId = liveSnapshot.activeLoadoutIds[slotIndex];
+        if (!spellId) {
+          return;
+        }
+        const spell = prototypeCatalog.spells[spellId];
+        if (spell.targetingMode === "self") {
+          authority.commandLeaderSpell(slotIndex, {
+            targetPoint: liveSnapshot.units.find((unit) => unit.id === liveSnapshot.leaderId)?.position ?? vec3(),
+            direction: yawToDirection(cameraOrbitRef.current.yaw),
+          });
+          setArmedSpellSlot(null);
+        } else {
+          setArmedSpellSlot(slotIndex);
+        }
+        return;
+      }
+
+      if (event.code === "KeyR") {
+        const leader = liveSnapshot.units.find((unit) => unit.id === liveSnapshot.leaderId);
+        if (!leader) {
+          return;
+        }
+        const reviveTarget = liveSnapshot.units.find(
+          (unit) =>
+            unit.faction === "leader_party" &&
+            unit.id !== liveSnapshot.leaderId &&
+            unit.isDowned &&
+            !unit.isDead,
+        );
+        if (reviveTarget) {
+          authority.commandRevive(reviveTarget.id);
+        }
+      }
+    };
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.code in movementKeysRef.current) {
+        movementKeysRef.current[event.code as keyof typeof movementKeysRef.current] = false;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, [authority]);
+
   const leader = snapshot.units.find((unit) => unit.id === snapshot.leaderId) ?? null;
   const selectedTarget =
     snapshot.units.find((unit) => unit.id === snapshot.selectedTargetId) ?? null;
   const recruitOptions = snapshot.recruitableCompanions.map((definitionId) => prototypeCatalog.units[definitionId]);
-  const loadoutNames = snapshot.activeLoadoutIds.map((spellId) => prototypeCatalog.spells[spellId].name);
   const orderedUnits = [...snapshot.units].sort((left, right) => {
     if (left.id === snapshot.leaderId) {
       return -1;
@@ -106,6 +223,75 @@ function App() {
     }
     return left.name.localeCompare(right.name);
   });
+  const leaderSpellbook = snapshot.spellbookIds.map((spellId) => prototypeCatalog.spells[spellId]);
+
+  const assignLoadoutSpell = (spellId: SpellId) => {
+    const nextLoadout = [...snapshot.activeLoadoutIds];
+    nextLoadout[editingLoadoutSlot] = spellId;
+    if (new Set(nextLoadout).size !== nextLoadout.length) {
+      return;
+    }
+    authority.setLeaderLoadout(nextLoadout);
+  };
+
+  const handleUnitClick = (unitId: string) => {
+    const unit = snapshot.units.find((entry) => entry.id === unitId);
+    if (!unit) {
+      return;
+    }
+
+    const armedSlot = armedSpellSlotRef.current;
+    if (armedSlot !== null) {
+      const spellId = snapshot.activeLoadoutIds[armedSlot];
+      const spell = spellId ? prototypeCatalog.spells[spellId] : null;
+      if (!spell) {
+        return;
+      }
+      if (spell.targetingMode === "enemy" || spell.targetingMode === "ally") {
+        const leaderUnit = snapshot.units.find((entry) => entry.id === snapshot.leaderId);
+        authority.commandLeaderSpell(armedSlot, {
+          targetUnitId: unit.id,
+          targetPoint: unit.position,
+          direction: leaderUnit ? normalize2D(subVec3(unit.position, leaderUnit.position)) : vec3(),
+        });
+        setArmedSpellSlot(null);
+      }
+      return;
+    }
+
+    authority.setSelectedTarget(unit.id);
+    if (unit.faction === "enemy") {
+      authority.commandLeaderBasicAttack(unit.id);
+    }
+  };
+
+  const handleGroundClick = (point: { x: number; y: number; z: number }) => {
+    const armedSlot = armedSpellSlotRef.current;
+    const leaderUnit = snapshot.units.find((entry) => entry.id === snapshot.leaderId);
+    if (armedSlot !== null) {
+      authority.commandLeaderSpell(armedSlot, {
+        targetPoint: point,
+        direction: leaderUnit ? normalize2D(subVec3(point, leaderUnit.position)) : yawToDirection(cameraOrbitRef.current.yaw),
+      });
+      setArmedSpellSlot(null);
+      return;
+    }
+
+    authority.setSelectedTarget(null);
+  };
+
+  const issueScopedOrder = (orderId: "follow_me" | "focus_weakest" | "hold_position" | "attack_my_target" | "defend_area" | "retreat") => {
+    const anchor = leader?.position ?? snapshot.arena.defendPoint;
+    if (orderScope === "all") {
+      authority.issueScopedOrder({ mode: "all" }, orderId, anchor, snapshot.selectedTargetId);
+      return;
+    }
+    if (orderScope === "alpha" || orderScope === "bravo") {
+      authority.issueScopedOrder({ mode: "custom", group: orderScope }, orderId, anchor, snapshot.selectedTargetId);
+      return;
+    }
+    authority.issueScopedOrder({ mode: "group", group: orderScope }, orderId, anchor, snapshot.selectedTargetId);
+  };
 
   return (
     <div className="app-shell">
@@ -175,14 +361,33 @@ function App() {
         <section>
           <h2>Loadout</h2>
           <p className="section-note">Leader spellbook has {catalogSummary.leaderSpellbookSlots} active slots.</p>
-          <ul>
-            {loadoutNames.map((name) => (
-              <li key={name}>
-                <span>{name}</span>
-                <strong>equipped</strong>
-              </li>
+          <div className="button-grid">
+            {snapshot.activeLoadoutIds.map((spellId, index) => (
+              <button
+                key={`${spellId}-${index}`}
+                className="action-button"
+                onClick={() => {
+                  setEditingLoadoutSlot(index);
+                }}
+              >
+                Slot {index + 1}: {prototypeCatalog.spells[spellId].name}
+              </button>
             ))}
-          </ul>
+          </div>
+          <p className="section-note">Editing slot {editingLoadoutSlot + 1}</p>
+          <div className="button-grid">
+            {leaderSpellbook.map((spell) => (
+              <button
+                key={spell.id}
+                className="action-button"
+                onClick={() => {
+                  assignLoadoutSpell(spell.id);
+                }}
+              >
+                {spell.name}
+              </button>
+            ))}
+          </div>
         </section>
 
         <section>
@@ -204,14 +409,61 @@ function App() {
 
         <section>
           <h2>Debug actions</h2>
+          <p className="section-note">Order scope: {orderScope}</p>
+          <div className="button-grid">
+            {["all", "frontline", "backline", "support", "alpha", "bravo"].map((scope) => (
+              <button
+                key={scope}
+                className="action-button"
+                onClick={() => {
+                  setOrderScope(scope as typeof orderScope);
+                }}
+              >
+                {scope}
+              </button>
+            ))}
+          </div>
           <div className="button-grid">
             <button
               className="action-button"
+              id="start-battle"
               onClick={() => {
                 authority.startBattle();
               }}
             >
               Start battle
+            </button>
+            <button
+              className="action-button"
+              onClick={() => {
+                issueScopedOrder("follow_me");
+              }}
+            >
+              Order follow
+            </button>
+            <button
+              className="action-button"
+              onClick={() => {
+                issueScopedOrder("focus_weakest");
+              }}
+            >
+              Order weakest
+            </button>
+            <button
+              className="action-button"
+              onClick={() => {
+                issueScopedOrder("hold_position");
+              }}
+            >
+              Order hold
+            </button>
+            <button
+              className="action-button"
+              onClick={() => {
+                issueScopedOrder("retreat");
+              }}
+            >
+              Order retreat
             </button>
             <button
               className="action-button"
@@ -278,6 +530,107 @@ function App() {
           </section>
         ) : null}
 
+        {snapshot.appliedRewards.length > 0 ? (
+          <section>
+            <h2>Applied rewards</h2>
+            <ul>
+              {snapshot.appliedRewards.map((rewardId) => (
+                <li key={rewardId}>
+                  <span>{prototypeCatalog.rewards[rewardId].name}</span>
+                  <strong>active</strong>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        <section>
+          <h2>Behavior editor</h2>
+          <div className="button-grid">
+            {orderedUnits
+              .filter((unit) => unit.faction === "leader_party" && unit.id !== snapshot.leaderId)
+              .map((unit) => (
+                <div key={unit.id} className="behavior-card">
+                  <strong>{unit.name}</strong>
+                  <span>
+                    {unit.behavior.profileId} / {unit.behavior.customGroup ?? "no custom group"}
+                  </span>
+                  <div className="button-grid">
+                    {(["aggressive", "defensive", "support"] as const).map((profileId) => (
+                      <button
+                        key={profileId}
+                        className="action-button"
+                        onClick={() => {
+                          authority.updateBehaviorProfile(unit.id, profileId);
+                        }}
+                      >
+                        {profileId}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="button-grid">
+                    {(["alpha", "bravo"] as const).map((groupId) => (
+                      <button
+                        key={groupId}
+                        className="action-button"
+                        onClick={() => {
+                          authority.assignCustomGroup(
+                            unit.id,
+                            unit.behavior.customGroup === groupId ? null : groupId,
+                          );
+                        }}
+                      >
+                        {groupId}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="button-grid">
+                    <button
+                      className="action-button"
+                      onClick={() => {
+                        authority.updateBehaviorSettings(unit.id, {
+                          healThresholdPct: Math.min(0.85, unit.behavior.healThresholdPct + 0.05),
+                        });
+                      }}
+                    >
+                      Heal +5%
+                    </button>
+                    <button
+                      className="action-button"
+                      onClick={() => {
+                        authority.updateBehaviorSettings(unit.id, {
+                          healThresholdPct: Math.max(0.2, unit.behavior.healThresholdPct - 0.05),
+                        });
+                      }}
+                    >
+                      Heal -5%
+                    </button>
+                    <button
+                      className="action-button"
+                      onClick={() => {
+                        authority.updateBehaviorSettings(unit.id, {
+                          retreatThresholdPct: Math.min(0.6, unit.behavior.retreatThresholdPct + 0.05),
+                        });
+                      }}
+                    >
+                      Retreat +5%
+                    </button>
+                    <button
+                      className="action-button"
+                      onClick={() => {
+                        authority.updateBehaviorSettings(unit.id, {
+                          retreatThresholdPct: Math.max(0.1, unit.behavior.retreatThresholdPct - 0.05),
+                        });
+                      }}
+                    >
+                      Retreat -5%
+                    </button>
+                  </div>
+                </div>
+              ))}
+          </div>
+        </section>
+
         <section>
           <h2>Units</h2>
           <ul className="unit-list">
@@ -286,7 +639,11 @@ function App() {
                 <button
                   className="unit-button"
                   onClick={() => {
-                    authority.setSelectedTarget(unit.id === snapshot.selectedTargetId ? null : unit.id);
+                    if (unit.id === snapshot.selectedTargetId) {
+                      authority.setSelectedTarget(null);
+                      return;
+                    }
+                    handleUnitClick(unit.id);
                   }}
                 >
                   <span>
@@ -305,54 +662,95 @@ function App() {
         </section>
       </aside>
 
-      <main className="viewport-shell">
-        <Canvas
-          camera={{ position: [0, 7, 12], fov: 42 }}
-          onCreated={({ camera }) => {
-            camera.lookAt(0, 1.5, 0);
-          }}
-        >
-          <color attach="background" args={["#e6dcc6"]} />
-          <ambientLight intensity={1.3} />
-          <directionalLight castShadow intensity={2.4} position={[12, 20, 4]} />
-          <gridHelper args={[40, 40, "#786654", "#bca37c"]} />
-          <Grid
-            args={[40, 40]}
-            cellColor="#967958"
-            sectionColor="#c5a77b"
-            fadeDistance={45}
-            fadeStrength={1}
-            infiniteGrid={false}
+      <main
+        className="viewport-shell"
+        onContextMenu={(event) => {
+          event.preventDefault();
+        }}
+        onMouseDown={(event) => {
+          if (event.button !== 2) {
+            return;
+          }
+          cameraOrbitRef.current.dragging = true;
+          cameraOrbitRef.current.lastClientX = event.clientX;
+          cameraOrbitRef.current.lastClientY = event.clientY;
+        }}
+        onMouseMove={(event) => {
+          if (!cameraOrbitRef.current.dragging) {
+            return;
+          }
+          const deltaX = event.clientX - cameraOrbitRef.current.lastClientX;
+          const deltaY = event.clientY - cameraOrbitRef.current.lastClientY;
+          cameraOrbitRef.current.lastClientX = event.clientX;
+          cameraOrbitRef.current.lastClientY = event.clientY;
+          cameraOrbitRef.current.yaw -= deltaX * 0.008;
+          cameraOrbitRef.current.pitch = Math.min(1.2, Math.max(0.15, cameraOrbitRef.current.pitch - deltaY * 0.006));
+        }}
+        onMouseUp={() => {
+          cameraOrbitRef.current.dragging = false;
+        }}
+        onMouseLeave={() => {
+          cameraOrbitRef.current.dragging = false;
+        }}
+        onWheel={(event) => {
+          cameraOrbitRef.current.distance = Math.min(
+            14,
+            Math.max(6, cameraOrbitRef.current.distance + event.deltaY * 0.01),
+          );
+        }}
+      >
+        <div className="viewport-overlay">
+          <div className="hud-chip">WASD move</div>
+          <div className="hud-chip">Right drag camera</div>
+          <div className="hud-chip">LMB attack/select</div>
+          <div className="hud-chip">1-3 arm spells</div>
+          <div className="hud-chip">R revive</div>
+          {armedSpellSlot !== null ? (
+            <div className="hud-chip armed-chip">
+              Armed: {prototypeCatalog.spells[snapshot.activeLoadoutIds[armedSpellSlot]].name}
+            </div>
+          ) : null}
+        </div>
+        <Canvas camera={{ position: [0, 7, 12], fov: 42 }}>
+          <CombatScene
+            snapshot={snapshot}
+            cameraOrbit={cameraOrbitRef.current}
+            onGroundClick={handleGroundClick}
+            onUnitClick={handleUnitClick}
           />
-          <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]}>
-            <planeGeometry args={[40, 40]} />
-            <meshStandardMaterial color="#bfa07a" />
-          </mesh>
-          <mesh castShadow position={[-3.2, 1.4, 0]}>
-            <boxGeometry args={[2.2, 2.8, 2.2]} />
-            <meshStandardMaterial color="#76523b" />
-          </mesh>
-          <mesh castShadow position={[3.2, 1.7, -1.5]}>
-            <cylinderGeometry args={[1.2, 1.6, 3.4, 16]} />
-            <meshStandardMaterial color="#4d6579" />
-          </mesh>
-          <Float speed={1.8} rotationIntensity={0.3} floatIntensity={0.5}>
-            <mesh castShadow position={[0, 2.8, 0]}>
-              <cylinderGeometry args={[0.6, 0.85, 2.5, 12]} />
-              <meshStandardMaterial color="#30495d" />
-            </mesh>
-          </Float>
-          <Text
-            color="#382717"
-            fontSize={0.58}
-            maxWidth={5}
-            position={[0, 5.45, 0]}
-            textAlign="center"
-          >
-            {snapshot.phase === "battle" ? "Authority ticking" : "Authority staged"}
-          </Text>
-          <OrbitControls enablePan={false} minDistance={7} maxDistance={18} target={[0, 1.5, 0]} />
         </Canvas>
+        <div className="hotbar">
+          <button className="hotbar-button hotbar-button-basic" type="button">
+            <span>LMB</span>
+            <strong>{leader ? prototypeCatalog.weapons[leader.weaponId].name : "Basic attack"}</strong>
+          </button>
+          {snapshot.activeLoadoutIds.map((spellId, index) => (
+            <button
+              key={spellId}
+              className={`hotbar-button${armedSpellSlot === index ? " hotbar-button-active" : ""}`}
+              onClick={() => {
+                const spell = prototypeCatalog.spells[spellId];
+                if (spell.targetingMode === "self") {
+                  authority.commandLeaderSpell(index, {
+                    targetPoint: leader?.position ?? vec3(),
+                    direction: yawToDirection(cameraOrbitRef.current.yaw),
+                  });
+                  setArmedSpellSlot(null);
+                  return;
+                }
+                setArmedSpellSlot(index);
+              }}
+            >
+              <span>{index + 1}</span>
+              <strong>{prototypeCatalog.spells[spellId].name}</strong>
+              <small>
+                {leader && (leader.spellCooldowns[spellId] ?? 0) > 0
+                  ? `${((leader.spellCooldowns[spellId] ?? 0) / 1000).toFixed(1)}s`
+                  : `${prototypeCatalog.spells[spellId].resourceCost} mana`}
+              </small>
+            </button>
+          ))}
+        </div>
       </main>
     </div>
   );

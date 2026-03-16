@@ -112,6 +112,7 @@ export interface RuntimeZone {
   center: Vec3;
   radius: number;
   remainingMs: number;
+  tickAccumulatorMs: number;
 }
 
 export interface FloatingText {

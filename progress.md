@@ -17,7 +17,11 @@ Original prompt: Build a 3D in-browser RPG combat prototype with a leader, three
 - Added runtime math helpers, arena/map data, and the first authoritative combat engine class.
 - The app shell now subscribes to live authority snapshots instead of rendering only static scaffold text.
 - Engine foundation covers encounter reset, recruit/start-battle flows, HP/resource/cooldown ticking, shield/status upkeep, downed/death transitions, XP gain, and reward choice gating.
+- Replaced the static canvas with a live combat scene that renders units, obstacles, zones, projectiles, floating text, and a third-person follow camera.
+- Added leader input plumbing: WASD/arrow movement, right-drag camera, click-to-select/basic attack, spell arming on `1-3`, and revive on `R`.
+- Added scoped companion orders (`all`, archetype groups, custom groups) and a functional behavior editor for stance/profile, custom group, and heal/retreat thresholds.
+- Reward choices now apply persistent run bonuses and return the player to loadout for replay instead of acting as dead-end UI.
 
 ## TODO
-- Replace the placeholder scene with the actual encounter map and third-person controller.
-- Layer player combat actions, spell casting, and scene interactions onto the authority runtime.
+- Tighten scene readability and replace primitive runtime meshes with curated FBX/GLTF presentation where practical.
+- Add richer HUD/audio feedback and verify the full recruit/companion/order loop with broader automated coverage.
