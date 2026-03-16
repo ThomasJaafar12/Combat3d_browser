@@ -153,6 +153,7 @@ export interface ArenaDefinition {
     width: number;
     depth: number;
   };
+  groundModelUrl: string;
   playerStart: Vec3;
   recruitStaging: Vec3[];
   companionSlots: Vec3[];

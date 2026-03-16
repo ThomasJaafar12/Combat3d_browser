@@ -3,9 +3,15 @@
 ## Module layout
 - `client/`: React + Three.js browser runtime.
 - `client/src/config`: feature flags and environment toggles.
-- `client/src/game`: curated asset bindings, shared combat definitions, authority runtime, math helpers, and arena data.
-- `client/src/components`: scene rendering and camera presentation driven by authority snapshots.
+- `client/src/game`: curated asset bindings, shared combat definitions, authority runtime, math helpers, arena data, asset loading, and input-targeting helpers.
+- `client/src/components`: scene rendering and HUD presentation driven by authority snapshots.
 - `docs/`: V0 implementation status and architecture notes.
+
+## Presentation layer seams
+- Curated model loading now lives in `client/src/game/assets/loader.ts`.
+- That loader owns FBX/GLTF file handling, per-model caching, normalization, and per-instance cloning so the scene components do not need file-format knowledge.
+- Arena layout data now lives in `client/src/game/environment/arena.ts`; rendering consumes the data-driven arena definition instead of hardcoding obstacle geometry in the scene.
+- The HUD lives in `client/src/components/HUD/CombatHUD.tsx` and reads snapshots only; it does not mutate simulation state directly beyond invoking existing authority intents.
 
 ## Combat state ownership
 - V0 will keep gameplay state in one authoritative simulation module.
@@ -21,6 +27,7 @@
 - Orders will change AI goals and priority weights rather than manually steering units every frame.
 - Targeting scopes will support all companions, archetype groups, and custom groups.
 - Current implementation supports all companions, archetype scopes, and custom `alpha`/`bravo` scopes through `issueScopedOrder`.
+- Ground-target area orders now use `client/src/game/input/orderTargeting.ts` as a thin client-side state machine: enter targeting mode -> preview ground point -> confirm anchor -> submit the existing authority intent.
 
 ## AI behavior overview
 - V0 AI will use stance plus compact priority rules and a fallback rotation chain.
@@ -29,9 +36,11 @@
 
 ## Data definition structure
 - Implemented definitions: `UnitDefinition`, `WeaponDefinition`, `SpellDefinition`, `EffectDefinition`, `OrderDefinition`, `RewardDefinition`, `BehaviorProfileDefinition`, and `SpellLoadoutDefinition`.
+- `UnitDefinition` now carries a presentation identifier so role-based character visuals stay data-driven instead of being hardcoded in the scene.
 - V0 content is already declared as data first and will be consumed by shared resolution code.
 
 ## Future extension notes
 - Replace the local authority transport with a real server adapter when the Rust/SpacetimeDB toolchain is available.
 - Move definitions into a shared package once the client and server both compile in this repo.
-- Swap primitive scene rendering for curated FBX/GLTF presentation while keeping the authority/data layers unchanged.
+- Add an authority event stream or equivalent bridge for audio/feedback systems so UI polish remains presentation-only.
+- Finish the camera/debug/test passes while keeping the authority/data layers unchanged.

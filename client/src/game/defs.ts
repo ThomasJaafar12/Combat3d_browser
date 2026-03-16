@@ -7,6 +7,14 @@ export type UnitArchetypeId =
   | "enemy_melee_chaser"
   | "enemy_ranged_caster"
   | "enemy_tank_disruptor";
+export type CharacterPresentationId =
+  | "leader"
+  | "companion_melee"
+  | "companion_ranged"
+  | "companion_support"
+  | "enemy_melee"
+  | "enemy_ranged"
+  | "enemy_tank";
 export type WeaponId =
   | "captain_saber"
   | "vanguard_halberd"
@@ -210,6 +218,7 @@ export interface UnitDefinition {
   name: string;
   faction: FactionId;
   controller: ControllerType;
+  presentationId: CharacterPresentationId;
   recruitmentLabel?: string;
   summary: string;
   group: GroupId;

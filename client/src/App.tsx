@@ -1,11 +1,18 @@
 import { Canvas } from "@react-three/fiber";
 import { useEffect, useRef, useState } from "react";
-import { CombatScene } from "@/components/CombatScene";
+import { CombatScene, type GroundPreviewState } from "@/components/CombatScene";
+import { CombatHUD } from "@/components/HUD/CombatHUD";
 import { featureFlags } from "@/config/featureFlags";
+import { preloadPresentationAssets } from "@/game/assets/loader";
 import { assetAudit } from "@/game/assetAudit";
 import { catalogSummary, prototypeCatalog } from "@/game/content";
 import { createCombatAuthority, reviveChannelMs } from "@/game/engine";
 import type { SpellId } from "@/game/defs";
+import {
+  type GroundTargetOrderId,
+  type OrderTargetingState,
+  orderTargetingHotkeys,
+} from "@/game/input/orderTargeting";
 import { normalize2D, subVec3, vec3, yawToDirection } from "@/game/math";
 import type { CombatSnapshot } from "@/game/runtime";
 
@@ -62,6 +69,8 @@ function App() {
   const snapshotRef = useRef(snapshot);
   const [armedSpellSlot, setArmedSpellSlot] = useState<number | null>(null);
   const armedSpellSlotRef = useRef<number | null>(null);
+  const [groundHoverPoint, setGroundHoverPoint] = useState<{ x: number; y: number; z: number } | null>(null);
+  const [orderTargeting, setOrderTargeting] = useState<OrderTargetingState | null>(null);
   const [editingLoadoutSlot, setEditingLoadoutSlot] = useState(0);
   const [orderScope, setOrderScope] = useState<"all" | "frontline" | "backline" | "support" | "alpha" | "bravo">("all");
   const movementKeysRef = useRef({
@@ -76,8 +85,8 @@ function App() {
   });
   const cameraOrbitRef = useRef({
     yaw: Math.PI,
-    pitch: 0.72,
-    distance: 14,
+    pitch: 1.16,
+    distance: 18,
     dragging: false,
     lastClientX: 0,
     lastClientY: 0,
@@ -86,6 +95,12 @@ function App() {
   useEffect(() => {
     return authority.subscribe(setSnapshot);
   }, [authority]);
+
+  useEffect(() => {
+    preloadPresentationAssets().catch((error) => {
+      console.error("Presentation asset preload failed", error);
+    });
+  }, []);
 
   useEffect(() => {
     snapshotRef.current = snapshot;
@@ -153,6 +168,14 @@ function App() {
       const liveSnapshot = snapshotRef.current;
       if (event.code === "Escape") {
         setArmedSpellSlot(null);
+        setOrderTargeting(null);
+        return;
+      }
+
+      const groundTargetOrderId = orderTargetingHotkeys[event.code];
+      if (groundTargetOrderId) {
+        setArmedSpellSlot(null);
+        setOrderTargeting({ orderId: groundTargetOrderId });
         return;
       }
 
@@ -170,6 +193,7 @@ function App() {
           });
           setArmedSpellSlot(null);
         } else {
+          setOrderTargeting(null);
           setArmedSpellSlot(slotIndex);
         }
         return;
@@ -210,6 +234,7 @@ function App() {
   const leader = snapshot.units.find((unit) => unit.id === snapshot.leaderId) ?? null;
   const selectedTarget =
     snapshot.units.find((unit) => unit.id === snapshot.selectedTargetId) ?? null;
+  const armedSpell = armedSpellSlot !== null ? prototypeCatalog.spells[snapshot.activeLoadoutIds[armedSpellSlot]] : null;
   const recruitOptions = snapshot.recruitableCompanions.map((definitionId) => prototypeCatalog.units[definitionId]);
   const orderedUnits = [...snapshot.units].sort((left, right) => {
     if (left.id === snapshot.leaderId) {
@@ -224,6 +249,31 @@ function App() {
     return left.name.localeCompare(right.name);
   });
   const leaderSpellbook = snapshot.spellbookIds.map((spellId) => prototypeCatalog.spells[spellId]);
+  const reviveIndicatorTargetId =
+    leader
+      ? snapshot.units.find(
+          (unit) =>
+            unit.faction === "leader_party" &&
+            unit.id !== snapshot.leaderId &&
+            unit.isDowned &&
+            !unit.isDead &&
+            Math.hypot(unit.position.x - leader.position.x, unit.position.z - leader.position.z) <= 2.6,
+        )?.id ?? null
+      : null;
+  let groundPreview: GroundPreviewState | null = null;
+  if (groundHoverPoint && orderTargeting) {
+    groundPreview = {
+      kind: "order",
+      point: groundHoverPoint,
+    };
+  } else if (groundHoverPoint && armedSpell && armedSpell.targetingMode === "ground") {
+    groundPreview = {
+      kind: "spell",
+      point: groundHoverPoint,
+      radius: armedSpell.areaRadius,
+      spellId: armedSpell.id,
+    };
+  }
 
   const assignLoadoutSpell = (spellId: SpellId) => {
     const nextLoadout = [...snapshot.activeLoadoutIds];
@@ -266,6 +316,12 @@ function App() {
   };
 
   const handleGroundClick = (point: { x: number; y: number; z: number }) => {
+    if (orderTargeting) {
+      issueScopedOrder(orderTargeting.orderId, point);
+      setOrderTargeting(null);
+      return;
+    }
+
     const armedSlot = armedSpellSlotRef.current;
     const leaderUnit = snapshot.units.find((entry) => entry.id === snapshot.leaderId);
     if (armedSlot !== null) {
@@ -280,8 +336,10 @@ function App() {
     authority.setSelectedTarget(null);
   };
 
-  const issueScopedOrder = (orderId: "follow_me" | "focus_weakest" | "hold_position" | "attack_my_target" | "defend_area" | "retreat") => {
-    const anchor = leader?.position ?? snapshot.arena.defendPoint;
+  const issueScopedOrder = (
+    orderId: "follow_me" | "focus_weakest" | "hold_position" | "attack_my_target" | "defend_area" | "retreat",
+    anchor = leader?.position ?? snapshot.arena.defendPoint,
+  ) => {
     if (orderScope === "all") {
       authority.issueScopedOrder({ mode: "all" }, orderId, anchor, snapshot.selectedTargetId);
       return;
@@ -291,6 +349,11 @@ function App() {
       return;
     }
     authority.issueScopedOrder({ mode: "group", group: orderScope }, orderId, anchor, snapshot.selectedTargetId);
+  };
+
+  const beginOrderTargeting = (orderId: GroundTargetOrderId) => {
+    setArmedSpellSlot(null);
+    setOrderTargeting({ orderId });
   };
 
   return (
@@ -452,18 +515,26 @@ function App() {
             <button
               className="action-button"
               onClick={() => {
-                issueScopedOrder("hold_position");
+                beginOrderTargeting("defend_area");
               }}
             >
-              Order hold
+              Place defend
             </button>
             <button
               className="action-button"
               onClick={() => {
-                issueScopedOrder("retreat");
+                beginOrderTargeting("hold_position");
               }}
             >
-              Order retreat
+              Place hold
+            </button>
+            <button
+              className="action-button"
+              onClick={() => {
+                beginOrderTargeting("retreat");
+              }}
+            >
+              Place retreat
             </button>
             <button
               className="action-button"
@@ -694,63 +765,47 @@ function App() {
         }}
         onWheel={(event) => {
           cameraOrbitRef.current.distance = Math.min(
-            14,
-            Math.max(6, cameraOrbitRef.current.distance + event.deltaY * 0.01),
+            20,
+            Math.max(8, cameraOrbitRef.current.distance + event.deltaY * 0.01),
           );
         }}
       >
-        <div className="viewport-overlay">
-          <div className="hud-chip">WASD move</div>
-          <div className="hud-chip">Right drag camera</div>
-          <div className="hud-chip">LMB attack/select</div>
-          <div className="hud-chip">1-3 arm spells</div>
-          <div className="hud-chip">R revive</div>
-          {armedSpellSlot !== null ? (
-            <div className="hud-chip armed-chip">
-              Armed: {prototypeCatalog.spells[snapshot.activeLoadoutIds[armedSpellSlot]].name}
-            </div>
-          ) : null}
-        </div>
         <Canvas camera={{ position: [0, 7, 12], fov: 42 }}>
           <CombatScene
             snapshot={snapshot}
             cameraOrbit={cameraOrbitRef.current}
             onGroundClick={handleGroundClick}
+            onGroundHover={setGroundHoverPoint}
             onUnitClick={handleUnitClick}
+            groundPreview={groundPreview}
+            reviveIndicatorUnitId={reviveIndicatorTargetId}
           />
         </Canvas>
-        <div className="hotbar">
-          <button className="hotbar-button hotbar-button-basic" type="button">
-            <span>LMB</span>
-            <strong>{leader ? prototypeCatalog.weapons[leader.weaponId].name : "Basic attack"}</strong>
-          </button>
-          {snapshot.activeLoadoutIds.map((spellId, index) => (
-            <button
-              key={spellId}
-              className={`hotbar-button${armedSpellSlot === index ? " hotbar-button-active" : ""}`}
-              onClick={() => {
-                const spell = prototypeCatalog.spells[spellId];
-                if (spell.targetingMode === "self") {
-                  authority.commandLeaderSpell(index, {
-                    targetPoint: leader?.position ?? vec3(),
-                    direction: yawToDirection(cameraOrbitRef.current.yaw),
-                  });
-                  setArmedSpellSlot(null);
-                  return;
-                }
-                setArmedSpellSlot(index);
-              }}
-            >
-              <span>{index + 1}</span>
-              <strong>{prototypeCatalog.spells[spellId].name}</strong>
-              <small>
-                {leader && (leader.spellCooldowns[spellId] ?? 0) > 0
-                  ? `${((leader.spellCooldowns[spellId] ?? 0) / 1000).toFixed(1)}s`
-                  : `${prototypeCatalog.spells[spellId].resourceCost} mana`}
-              </small>
-            </button>
-          ))}
-        </div>
+        <CombatHUD
+          snapshot={snapshot}
+          armedSpellSlot={armedSpellSlot}
+          activeOrderTargeting={orderTargeting?.orderId ?? null}
+          onSpellSlotClick={(index) => {
+            const spellId = snapshot.activeLoadoutIds[index];
+            const spell = spellId ? prototypeCatalog.spells[spellId] : null;
+            if (!spell) {
+              return;
+            }
+            if (spell.targetingMode === "self") {
+              authority.commandLeaderSpell(index, {
+                targetPoint: leader?.position ?? vec3(),
+                direction: yawToDirection(cameraOrbitRef.current.yaw),
+              });
+              setArmedSpellSlot(null);
+              return;
+            }
+            setOrderTargeting(null);
+            setArmedSpellSlot(index);
+          }}
+          onChooseReward={(rewardId) => {
+            authority.chooseReward(rewardId);
+          }}
+        />
       </main>
     </div>
   );

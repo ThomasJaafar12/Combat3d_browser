@@ -557,6 +557,7 @@ const units: UnitDefinition[] = [
     name: "Iron Captain",
     faction: "leader_party",
     controller: "player",
+    presentationId: "leader",
     summary: "Third-person leader with a flexible five-spell book and saber basics.",
     group: "all",
     stats: {
@@ -582,6 +583,7 @@ const units: UnitDefinition[] = [
     name: "Vanguard",
     faction: "leader_party",
     controller: "ai",
+    presentationId: "companion_melee",
     recruitmentLabel: "Recruit Vanguard",
     summary: "Frontline bruiser that taunts and anchors the formation.",
     group: "frontline",
@@ -608,6 +610,7 @@ const units: UnitDefinition[] = [
     name: "Ranger",
     faction: "leader_party",
     controller: "ai",
+    presentationId: "companion_ranged",
     recruitmentLabel: "Recruit Ranger",
     summary: "Backline finisher that capitalizes on marked targets.",
     group: "backline",
@@ -634,6 +637,7 @@ const units: UnitDefinition[] = [
     name: "Mender",
     faction: "leader_party",
     controller: "ai",
+    presentationId: "companion_support",
     recruitmentLabel: "Recruit Mender",
     summary: "Support specialist focused on healing and shields.",
     group: "support",
@@ -660,6 +664,7 @@ const units: UnitDefinition[] = [
     name: "Raider Chaser",
     faction: "enemy",
     controller: "ai",
+    presentationId: "enemy_melee",
     summary: "Fast melee enemy that collapses on exposed targets.",
     group: "frontline",
     stats: {
@@ -685,6 +690,7 @@ const units: UnitDefinition[] = [
     name: "Hexcaster",
     faction: "enemy",
     controller: "ai",
+    presentationId: "enemy_ranged",
     summary: "Backline caster that throws ember bolts and control.",
     group: "backline",
     stats: {
@@ -710,6 +716,7 @@ const units: UnitDefinition[] = [
     name: "Bulwark Disruptor",
     faction: "enemy",
     controller: "ai",
+    presentationId: "enemy_tank",
     summary: "Slow tank enemy that taunts and knocks units out of formation.",
     group: "frontline",
     stats: {
