@@ -85,8 +85,8 @@ function App() {
   });
   const cameraOrbitRef = useRef({
     yaw: Math.PI,
-    pitch: 1.16,
-    distance: 18,
+    pitch: 0.38,
+    distance: 7.2,
     dragging: false,
     lastClientX: 0,
     lastClientY: 0,
@@ -755,7 +755,7 @@ function App() {
           cameraOrbitRef.current.lastClientX = event.clientX;
           cameraOrbitRef.current.lastClientY = event.clientY;
           cameraOrbitRef.current.yaw -= deltaX * 0.008;
-          cameraOrbitRef.current.pitch = Math.min(1.2, Math.max(0.15, cameraOrbitRef.current.pitch - deltaY * 0.006));
+          cameraOrbitRef.current.pitch = Math.min(0.7, Math.max(0.2, cameraOrbitRef.current.pitch - deltaY * 0.0045));
         }}
         onMouseUp={() => {
           cameraOrbitRef.current.dragging = false;
@@ -765,8 +765,8 @@ function App() {
         }}
         onWheel={(event) => {
           cameraOrbitRef.current.distance = Math.min(
-            20,
-            Math.max(8, cameraOrbitRef.current.distance + event.deltaY * 0.01),
+            10.5,
+            Math.max(5.8, cameraOrbitRef.current.distance + event.deltaY * 0.008),
           );
         }}
       >

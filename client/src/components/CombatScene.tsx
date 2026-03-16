@@ -103,53 +103,51 @@ function CameraRig({ snapshot, cameraOrbit }: { snapshot: CombatSnapshot; camera
       return;
     }
 
-    const activeEnemies = snapshot.units.filter((unit) => unit.faction === "enemy" && !unit.isDead);
-    const enemyCentroid =
-      activeEnemies.length > 0
-        ? activeEnemies.reduce(
-            (sum, unit) => new THREE.Vector3(sum.x + unit.position.x, sum.y + unit.position.y, sum.z + unit.position.z),
-            new THREE.Vector3(),
-          ).multiplyScalar(1 / activeEnemies.length)
-        : new THREE.Vector3(leader.position.x, leader.position.y, leader.position.z - 8);
     const selectedTarget = snapshot.selectedTargetId
       ? snapshot.units.find((unit) => unit.id === snapshot.selectedTargetId) ?? null
       : null;
-    const engagementPoint = selectedTarget
-      ? new THREE.Vector3(selectedTarget.position.x, selectedTarget.position.y, selectedTarget.position.z)
-      : enemyCentroid;
-    const leaderPoint = new THREE.Vector3(leader.position.x, leader.position.y, leader.position.z);
-    const enemySpread = activeEnemies.reduce((maxDistance, unit) => {
-      const distance = Math.hypot(unit.position.x - enemyCentroid.x, unit.position.z - enemyCentroid.z);
-      return Math.max(maxDistance, distance);
-    }, 0);
-    const leaderToEngagementDistance = Math.hypot(engagementPoint.x - leaderPoint.x, engagementPoint.z - leaderPoint.z);
-    const framingWeight = THREE.MathUtils.clamp(0.5 + leaderToEngagementDistance / 24, 0.58, 0.78);
-    const desiredFocus = leaderPoint.clone().lerp(engagementPoint, framingWeight);
-    desiredFocus.y = 2.2;
+    if (!initializedRef.current) {
+      cameraOrbit.yaw = leader.facingYaw;
+    }
 
-    const desiredDistance = Math.max(cameraOrbit.distance, 16 + enemySpread * 0.75);
-    const effectivePitch = Math.max(cameraOrbit.pitch, 1.1);
-    const cosPitch = Math.cos(effectivePitch);
-    const desiredOffset = new THREE.Vector3(
-      -Math.sin(cameraOrbit.yaw) * cosPitch * desiredDistance,
-      Math.sin(effectivePitch) * desiredDistance + 2.8,
-      -Math.cos(cameraOrbit.yaw) * cosPitch * desiredDistance,
-    );
-    const desiredTarget = desiredFocus.clone();
-    let desiredPosition = desiredFocus.clone().add(desiredOffset);
+    const effectivePitch = THREE.MathUtils.clamp(cameraOrbit.pitch, 0.22, 0.68);
+    const desiredDistance = THREE.MathUtils.clamp(cameraOrbit.distance, 5.8, 10.5);
+    const forward = new THREE.Vector3(Math.sin(cameraOrbit.yaw), 0, Math.cos(cameraOrbit.yaw)).normalize();
+    const right = new THREE.Vector3(forward.z, 0, -forward.x).normalize();
+    const anchor = new THREE.Vector3(leader.position.x, leader.position.y + 1.55, leader.position.z);
+    const shoulderOffset = right.clone().multiplyScalar(0.8);
+    const heightOffset = new THREE.Vector3(0, 1.2 + Math.sin(effectivePitch) * 1.8, 0);
+    const backOffset = forward
+      .clone()
+      .multiplyScalar(-(desiredDistance * Math.cos(effectivePitch) + 1.4));
 
-    const rayDirection = desiredPosition.clone().sub(desiredTarget).normalize();
-    const ray = new THREE.Ray(desiredTarget, rayDirection);
-    const desiredLength = desiredPosition.distanceTo(desiredTarget);
+    let desiredPosition = anchor.clone().add(shoulderOffset).add(heightOffset).add(backOffset);
+    const desiredTarget = anchor
+      .clone()
+      .add(forward.clone().multiplyScalar(4.8))
+      .add(new THREE.Vector3(0, 0.35 + Math.sin(effectivePitch) * 0.35, 0));
+
+    if (selectedTarget) {
+      const targetBias = new THREE.Vector3(
+        selectedTarget.position.x,
+        selectedTarget.position.y + 1.1,
+        selectedTarget.position.z,
+      );
+      desiredTarget.lerp(targetBias, 0.18);
+    }
+
+    const rayDirection = desiredPosition.clone().sub(anchor).normalize();
+    const ray = new THREE.Ray(anchor, rayDirection);
+    const desiredLength = desiredPosition.distanceTo(anchor);
     let nearestHitDistance = desiredLength;
 
     snapshot.arena.obstacles
       .filter((obstacle) => obstacle.blocksMovement)
       .forEach((obstacle) => {
         const expandedHalfExtents = new THREE.Vector3(
-          obstacle.size.x / 2 + 0.6,
-          obstacle.size.y / 2 + 0.8,
-          obstacle.size.z / 2 + 0.6,
+          obstacle.size.x / 2 + 0.45,
+          obstacle.size.y / 2 + 0.65,
+          obstacle.size.z / 2 + 0.45,
         );
         const obstacleCenter = new THREE.Vector3(
           obstacle.position.x,
@@ -164,17 +162,16 @@ function CameraRig({ snapshot, cameraOrbit }: { snapshot: CombatSnapshot; camera
         if (!hitPoint) {
           return;
         }
-        const hitDistance = hitPoint.distanceTo(desiredTarget);
+        const hitDistance = hitPoint.distanceTo(anchor);
         if (hitDistance > 0 && hitDistance < nearestHitDistance) {
           nearestHitDistance = hitDistance;
         }
       });
 
     if (nearestHitDistance < desiredLength) {
-      desiredPosition = desiredTarget
+      desiredPosition = anchor
         .clone()
-        .add(rayDirection.multiplyScalar(Math.max(6.6, nearestHitDistance - 1.4)));
-      desiredPosition.y = Math.max(desiredPosition.y, desiredTarget.y + 8);
+        .add(rayDirection.multiplyScalar(Math.max(2.8, nearestHitDistance - 0.55)));
     }
 
     if (!initializedRef.current) {
