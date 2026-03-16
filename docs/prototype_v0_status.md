@@ -19,11 +19,13 @@
 - Scene rendering now instantiates curated character/environment assets instead of primitive capsules/boxes.
 - A dedicated viewport HUD now shows leader resources, companion state, selected target info, reward choices, and clearer spell slot state.
 - Ground-target area orders are now placeable through the UI and `Q` / `H` / `T` hotkeys for defend / hold / retreat targeting.
+- Third-person controls and orientation are now corrected: movement is camera-relative, `W/A/S/D` map to forward/left/back/right, the character faces the direction of travel/action, and zoom is disabled for now.
+- Runtime stepping and diagnostics are now optimized for smoother local play: the client drives the authority with a fixed-step simulation loop, the authority throttles snapshot publication, and the viewport shows a live-ops FPS/frame-time/render-cost panel.
+- Movement-time render cost is reduced through lighter canvas settings, scene memoization, and opaque HUD surfaces instead of blur-heavy compositing.
 - Required documentation initialized.
 
 ## Incomplete systems
 - Audio hooks are still not wired to combat/UI events.
-- Camera readability is improved, but it may still need another pass for obstacle-heavy angles and wider battlefield framing.
 - Automated smoke coverage still stops at battle start instead of running the recruit/order/cast/revive/clear loop.
 - Debug/stability tooling and the remaining combat-feedback polish are still pending.
 
@@ -49,13 +51,14 @@
 - Open `http://127.0.0.1:5173`
 
 ## Next recommended steps
+- Remove the remaining GLTF `../materials/` warning so startup/movement-time hitches are narrowed to real scene cost instead of failed asset fetches.
 - Add the audio system and bridge combat/UI events into it without pushing presentation logic into the authority.
 - Expand automated smoke coverage to recruit companions and exercise placed orders, casting, revive flow, and wave clear.
-- Tighten the camera further if the portrait-oriented automated capture still overemphasizes the center lane.
+- Add the remaining compact debug tooling and lightweight combat-feedback polish now that the live-ops overlay is in place.
 
 ## Known issues
-- The new curated scene renders correctly in-browser, and the camera is battlefield-aware now, but the portrait-oriented automated capture can still overemphasize the center lane.
 - One curated environment prop (`env_prop_fence_metal_01.gltf`) had broken texture references in the source curation; the file was patched locally, but an already-running dev server may still cache the old warning until it is restarted.
+- Movement-time FPS drops are improved, but any remaining hitching is now more likely tied to asset-loading/startup issues than to normal scene geometry cost.
 - The current automated smoke path starts the battle and advances time, but it does not yet automate companion recruiting or placed-order changes through the side panel.
 
 ## Commit notes
@@ -64,3 +67,4 @@
 - Commit 3: introduced the authoritative combat runtime, arena layout data, and a debug shell that reads and mutates live combat state.
 - Commit 4+: expanded the prototype into a playable scene with player movement, targeting, spell arming, scoped orders, behavior editing, and replayable reward application.
 - Current slice after Commit 4+: added the presentation asset loader, data-driven environment module, curated scene assets, area-order targeting mode, dedicated viewport HUD, and a battlefield-aware camera pass.
+- Current runtime slice: corrected third-person controls/orientation, fixed-step local simulation, live-ops diagnostics, and the first round of CPU/GPU/compositing optimizations.

@@ -46,6 +46,7 @@ const REVIVE_CHANNEL_MS = 1500;
 const LEVEL_XP_STEP = 100;
 const AI_DECISION_INTERVAL_MS = 220;
 const BASIC_ATTACK_BUFFER_MS = 120;
+const SNAPSHOT_EMIT_INTERVAL_MS = 1000 / 60;
 
 export class CombatAuthority {
   private listeners = new Set<Listener>();
@@ -91,6 +92,7 @@ export class CombatAuthority {
   private playerAimYaw = 0;
   private queuedBasicAttack = false;
   private activeReviveTargetId: string | null = null;
+  private lastSnapshotEmitMs = Number.NEGATIVE_INFINITY;
 
   constructor() {
     this.resetEncounter();
@@ -541,10 +543,15 @@ export class CombatAuthority {
     for (let index = 0; index < steps; index += 1) {
       this.tick(stepMs);
     }
-    this.emit();
+    this.emit(false);
   }
 
-  private emit() {
+  private emit(force = true) {
+    if (!force && this.timeMs - this.lastSnapshotEmitMs < SNAPSHOT_EMIT_INTERVAL_MS) {
+      return;
+    }
+
+    this.lastSnapshotEmitMs = this.timeMs;
     const snapshot = this.getSnapshot();
     this.listeners.forEach((listener) => listener(snapshot));
   }
@@ -556,8 +563,11 @@ export class CombatAuthority {
     this.tickProjectiles(deltaMs);
     this.tickZones(deltaMs);
 
-    if (this.phase === "battle") {
+    if (this.phase === "loadout" || this.phase === "battle") {
       this.updateLeader(deltaMs);
+    }
+
+    if (this.phase === "battle") {
       this.updateCompanionAi(deltaMs);
       this.updateEnemyAi(deltaMs);
       this.updateReviveChannel(deltaMs);
@@ -1267,7 +1277,7 @@ export class CombatAuthority {
   private rotateInputByYaw(moveInput: Vec3, yaw: number) {
     const cos = Math.cos(yaw);
     const sin = Math.sin(yaw);
-    return vec3(moveInput.x * cos - moveInput.z * sin, 0, moveInput.x * sin + moveInput.z * cos);
+    return vec3(moveInput.x * cos + moveInput.z * sin, 0, moveInput.z * cos - moveInput.x * sin);
   }
 
   private calculateWeaponDamage(attacker: RuntimeUnit, baseDamage: number, target: RuntimeUnit) {

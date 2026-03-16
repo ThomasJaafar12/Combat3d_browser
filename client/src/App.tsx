@@ -1,6 +1,6 @@
 import { Canvas } from "@react-three/fiber";
-import { useEffect, useRef, useState } from "react";
-import { CombatScene, type GroundPreviewState } from "@/components/CombatScene";
+import { useDeferredValue, useEffect, useRef, useState } from "react";
+import { CombatScene, type GroundPreviewState, type ScenePerformanceSample } from "@/components/CombatScene";
 import { CombatHUD } from "@/components/HUD/CombatHUD";
 import { featureFlags } from "@/config/featureFlags";
 import { preloadPresentationAssets } from "@/game/assets/loader";
@@ -15,6 +15,25 @@ import {
 } from "@/game/input/orderTargeting";
 import { normalize2D, subVec3, vec3, yawToDirection } from "@/game/math";
 import type { CombatSnapshot } from "@/game/runtime";
+
+type MovementDirection = "forward" | "backward" | "left" | "right";
+
+const resolveMovementDirection = (event: KeyboardEvent): MovementDirection | null => {
+  const key = event.key.toLowerCase();
+  if (event.code === "KeyW" || event.code === "ArrowUp" || key === "w" || key === "z") {
+    return "forward";
+  }
+  if (event.code === "KeyS" || event.code === "ArrowDown" || key === "s") {
+    return "backward";
+  }
+  if (event.code === "KeyA" || event.code === "ArrowLeft" || key === "a" || key === "q") {
+    return "left";
+  }
+  if (event.code === "KeyD" || event.code === "ArrowRight" || key === "d") {
+    return "right";
+  }
+  return null;
+};
 
 const summarizeSnapshot = (snapshot: CombatSnapshot) => {
   const leader = snapshot.units.find((unit) => unit.id === snapshot.leaderId);
@@ -63,10 +82,24 @@ const summarizeSnapshot = (snapshot: CombatSnapshot) => {
 };
 
 function App() {
+  const simulationAccumulatorRef = useRef(0);
   const authorityRef = useRef(createCombatAuthority());
   const authority = authorityRef.current;
+  const viewportRef = useRef<HTMLElement | null>(null);
   const [snapshot, setSnapshot] = useState(() => authority.getSnapshot());
   const snapshotRef = useRef(snapshot);
+  const deferredSnapshot = useDeferredValue(snapshot);
+  const snapshotCountRef = useRef(0);
+  const [liveOps, setLiveOps] = useState<ScenePerformanceSample & { snapshotHz: number }>({
+    fps: 0,
+    frameMs: 0,
+    drawCalls: 0,
+    triangles: 0,
+    units: 0,
+    projectiles: 0,
+    floatingTexts: 0,
+    snapshotHz: 0,
+  });
   const [armedSpellSlot, setArmedSpellSlot] = useState<number | null>(null);
   const armedSpellSlotRef = useRef<number | null>(null);
   const [groundHoverPoint, setGroundHoverPoint] = useState<{ x: number; y: number; z: number } | null>(null);
@@ -74,14 +107,10 @@ function App() {
   const [editingLoadoutSlot, setEditingLoadoutSlot] = useState(0);
   const [orderScope, setOrderScope] = useState<"all" | "frontline" | "backline" | "support" | "alpha" | "bravo">("all");
   const movementKeysRef = useRef({
-    KeyW: false,
-    KeyA: false,
-    KeyS: false,
-    KeyD: false,
-    ArrowUp: false,
-    ArrowLeft: false,
-    ArrowDown: false,
-    ArrowRight: false,
+    forward: false,
+    backward: false,
+    left: false,
+    right: false,
   });
   const cameraOrbitRef = useRef({
     yaw: Math.PI,
@@ -93,7 +122,10 @@ function App() {
   });
 
   useEffect(() => {
-    return authority.subscribe(setSnapshot);
+    return authority.subscribe((nextSnapshot) => {
+      snapshotCountRef.current += 1;
+      setSnapshot(nextSnapshot);
+    });
   }, [authority]);
 
   useEffect(() => {
@@ -107,24 +139,85 @@ function App() {
   }, [snapshot]);
 
   useEffect(() => {
+    if (snapshot.phase === "loadout" || snapshot.phase === "battle") {
+      viewportRef.current?.focus();
+    }
+  }, [snapshot.phase]);
+
+  useEffect(() => {
+    viewportRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
     armedSpellSlotRef.current = armedSpellSlot;
   }, [armedSpellSlot]);
 
   useEffect(() => {
+    setLiveOps((current) => ({
+      ...current,
+      units: snapshot.units.length,
+      projectiles: snapshot.projectiles.length,
+      floatingTexts: snapshot.floatingTexts.length,
+    }));
+  }, [snapshot.floatingTexts.length, snapshot.projectiles.length, snapshot.units.length]);
+
+  useEffect(() => {
     let frameId = 0;
     let previousTime = performance.now();
+    let previousCount = snapshotCountRef.current;
+
+    const sampleSnapshotRate = (now: number) => {
+      const elapsedMs = now - previousTime;
+      if (elapsedMs >= 500) {
+        const emittedSnapshots = snapshotCountRef.current - previousCount;
+        previousCount = snapshotCountRef.current;
+        previousTime = now;
+        setLiveOps((current) => ({
+          ...current,
+          snapshotHz: elapsedMs > 0 ? (emittedSnapshots * 1000) / elapsedMs : current.snapshotHz,
+        }));
+      }
+
+      frameId = window.requestAnimationFrame(sampleSnapshotRate);
+    };
+
+    frameId = window.requestAnimationFrame(sampleSnapshotRate);
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, []);
+
+  useEffect(() => {
+    let frameId = 0;
+    let previousTime = performance.now();
+    const simulationStepMs = 1000 / 60;
+    const maxCatchUpSteps = 4;
 
     const tick = (now: number) => {
-      const deltaMs = Math.min(50, now - previousTime);
+      const deltaMs = Math.min(100, now - previousTime);
       previousTime = now;
       const input = movementKeysRef.current;
       const moveIntent = vec3(
-        (input.KeyD || input.ArrowRight ? 1 : 0) - (input.KeyA || input.ArrowLeft ? 1 : 0),
+        (input.left ? 1 : 0) - (input.right ? 1 : 0),
         0,
-        (input.KeyS || input.ArrowDown ? 1 : 0) - (input.KeyW || input.ArrowUp ? 1 : 0),
+        (input.forward ? 1 : 0) - (input.backward ? 1 : 0),
       );
       authority.setPlayerIntent(moveIntent, cameraOrbitRef.current.yaw);
-      authority.advanceTime(deltaMs);
+      simulationAccumulatorRef.current += deltaMs;
+
+      let simulatedSteps = 0;
+      while (
+        simulationAccumulatorRef.current >= simulationStepMs &&
+        simulatedSteps < maxCatchUpSteps
+      ) {
+        authority.advanceTime(simulationStepMs);
+        simulationAccumulatorRef.current -= simulationStepMs;
+        simulatedSteps += 1;
+      }
+
+      if (simulatedSteps === maxCatchUpSteps) {
+        simulationAccumulatorRef.current = 0;
+      }
       frameId = window.requestAnimationFrame(tick);
     };
 
@@ -157,8 +250,22 @@ function App() {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.code in movementKeysRef.current) {
-        movementKeysRef.current[event.code as keyof typeof movementKeysRef.current] = true;
+      const movementDirection = resolveMovementDirection(event);
+      if (
+        movementDirection ||
+        event.code === "Space" ||
+        event.code === "Escape" ||
+        event.code === "KeyR" ||
+        event.code === "Digit1" ||
+        event.code === "Digit2" ||
+        event.code === "Digit3" ||
+        event.code in orderTargetingHotkeys
+      ) {
+        event.preventDefault();
+      }
+
+      if (movementDirection) {
+        movementKeysRef.current[movementDirection] = true;
       }
 
       if (event.repeat) {
@@ -218,16 +325,20 @@ function App() {
     };
 
     const handleKeyUp = (event: KeyboardEvent) => {
-      if (event.code in movementKeysRef.current) {
-        movementKeysRef.current[event.code as keyof typeof movementKeysRef.current] = false;
+      const movementDirection = resolveMovementDirection(event);
+      if (movementDirection) {
+        event.preventDefault();
+      }
+      if (movementDirection) {
+        movementKeysRef.current[movementDirection] = false;
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("keydown", handleKeyDown, { capture: true });
+    window.addEventListener("keyup", handleKeyUp, { capture: true });
     return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("keydown", handleKeyDown, { capture: true });
+      window.removeEventListener("keyup", handleKeyUp, { capture: true });
     };
   }, [authority]);
 
@@ -235,12 +346,15 @@ function App() {
   const selectedTarget =
     snapshot.units.find((unit) => unit.id === snapshot.selectedTargetId) ?? null;
   const armedSpell = armedSpellSlot !== null ? prototypeCatalog.spells[snapshot.activeLoadoutIds[armedSpellSlot]] : null;
-  const recruitOptions = snapshot.recruitableCompanions.map((definitionId) => prototypeCatalog.units[definitionId]);
-  const orderedUnits = [...snapshot.units].sort((left, right) => {
-    if (left.id === snapshot.leaderId) {
+  const debugLeader = deferredSnapshot.units.find((unit) => unit.id === deferredSnapshot.leaderId) ?? null;
+  const debugSelectedTarget =
+    deferredSnapshot.units.find((unit) => unit.id === deferredSnapshot.selectedTargetId) ?? null;
+  const recruitOptions = deferredSnapshot.recruitableCompanions.map((definitionId) => prototypeCatalog.units[definitionId]);
+  const orderedUnits = [...deferredSnapshot.units].sort((left, right) => {
+    if (left.id === deferredSnapshot.leaderId) {
       return -1;
     }
-    if (right.id === snapshot.leaderId) {
+    if (right.id === deferredSnapshot.leaderId) {
       return 1;
     }
     if (left.faction !== right.faction) {
@@ -248,7 +362,7 @@ function App() {
     }
     return left.name.localeCompare(right.name);
   });
-  const leaderSpellbook = snapshot.spellbookIds.map((spellId) => prototypeCatalog.spells[spellId]);
+  const leaderSpellbook = deferredSnapshot.spellbookIds.map((spellId) => prototypeCatalog.spells[spellId]);
   const reviveIndicatorTargetId =
     leader
       ? snapshot.units.find(
@@ -372,27 +486,27 @@ function App() {
           <ul>
             <li>
               <span>Phase</span>
-              <strong>{snapshot.phase}</strong>
+              <strong>{deferredSnapshot.phase}</strong>
             </li>
             <li>
               <span>Wave</span>
-              <strong>{snapshot.waveNumber}</strong>
+              <strong>{deferredSnapshot.waveNumber}</strong>
             </li>
             <li>
               <span>XP / level</span>
               <strong>
-                {snapshot.totalXp} / {snapshot.level}
+                {deferredSnapshot.totalXp} / {deferredSnapshot.level}
               </strong>
             </li>
             <li>
               <span>Leader HP / resource</span>
               <strong>
-                {leader ? `${Math.round(leader.currentHp)} / ${Math.round(leader.currentResource)}` : "n/a"}
+                {debugLeader ? `${Math.round(debugLeader.currentHp)} / ${Math.round(debugLeader.currentResource)}` : "n/a"}
               </strong>
             </li>
             <li>
               <span>Selected target</span>
-              <strong>{selectedTarget?.name ?? "none"}</strong>
+              <strong>{debugSelectedTarget?.name ?? "none"}</strong>
             </li>
           </ul>
         </section>
@@ -425,7 +539,7 @@ function App() {
           <h2>Loadout</h2>
           <p className="section-note">Leader spellbook has {catalogSummary.leaderSpellbookSlots} active slots.</p>
           <div className="button-grid">
-            {snapshot.activeLoadoutIds.map((spellId, index) => (
+            {deferredSnapshot.activeLoadoutIds.map((spellId, index) => (
               <button
                 key={`${spellId}-${index}`}
                 className="action-button"
@@ -582,11 +696,11 @@ function App() {
           </div>
         </section>
 
-        {snapshot.rewardChoices.pendingSelection ? (
+        {deferredSnapshot.rewardChoices.pendingSelection ? (
           <section>
             <h2>Reward choices</h2>
             <div className="button-grid">
-              {snapshot.rewardChoices.choices.map((rewardId) => (
+              {deferredSnapshot.rewardChoices.choices.map((rewardId) => (
                 <button
                   key={rewardId}
                   className="action-button"
@@ -601,11 +715,11 @@ function App() {
           </section>
         ) : null}
 
-        {snapshot.appliedRewards.length > 0 ? (
+        {deferredSnapshot.appliedRewards.length > 0 ? (
           <section>
             <h2>Applied rewards</h2>
             <ul>
-              {snapshot.appliedRewards.map((rewardId) => (
+              {deferredSnapshot.appliedRewards.map((rewardId) => (
                 <li key={rewardId}>
                   <span>{prototypeCatalog.rewards[rewardId].name}</span>
                   <strong>active</strong>
@@ -619,7 +733,7 @@ function App() {
           <h2>Behavior editor</h2>
           <div className="button-grid">
             {orderedUnits
-              .filter((unit) => unit.faction === "leader_party" && unit.id !== snapshot.leaderId)
+              .filter((unit) => unit.faction === "leader_party" && unit.id !== deferredSnapshot.leaderId)
               .map((unit) => (
                 <div key={unit.id} className="behavior-card">
                   <strong>{unit.name}</strong>
@@ -710,7 +824,7 @@ function App() {
                 <button
                   className="unit-button"
                   onClick={() => {
-                    if (unit.id === snapshot.selectedTargetId) {
+                    if (unit.id === deferredSnapshot.selectedTargetId) {
                       authority.setSelectedTarget(null);
                       return;
                     }
@@ -719,7 +833,7 @@ function App() {
                 >
                   <span>
                     {unit.name}
-                    {unit.id === snapshot.leaderId ? " (Leader)" : ""}
+                    {unit.id === deferredSnapshot.leaderId ? " (Leader)" : ""}
                   </span>
                   <strong>
                     {Math.round(unit.currentHp)} HP
@@ -734,11 +848,14 @@ function App() {
       </aside>
 
       <main
+        ref={viewportRef}
+        tabIndex={0}
         className="viewport-shell"
         onContextMenu={(event) => {
           event.preventDefault();
         }}
         onMouseDown={(event) => {
+          viewportRef.current?.focus();
           if (event.button !== 2) {
             return;
           }
@@ -764,13 +881,18 @@ function App() {
           cameraOrbitRef.current.dragging = false;
         }}
         onWheel={(event) => {
-          cameraOrbitRef.current.distance = Math.min(
-            10.5,
-            Math.max(5.8, cameraOrbitRef.current.distance + event.deltaY * 0.008),
-          );
+          event.preventDefault();
         }}
       >
-        <Canvas camera={{ position: [0, 7, 12], fov: 42 }}>
+        <Canvas
+          camera={{ position: [0, 7, 12], fov: 42 }}
+          shadows={false}
+          dpr={[1, 1.5]}
+          gl={{
+            antialias: false,
+            powerPreference: "high-performance",
+          }}
+        >
           <CombatScene
             snapshot={snapshot}
             cameraOrbit={cameraOrbitRef.current}
@@ -779,6 +901,12 @@ function App() {
             onUnitClick={handleUnitClick}
             groundPreview={groundPreview}
             reviveIndicatorUnitId={reviveIndicatorTargetId}
+            onPerformanceSample={(sample) => {
+              setLiveOps((current) => ({
+                ...current,
+                ...sample,
+              }));
+            }}
           />
         </Canvas>
         <CombatHUD
@@ -806,6 +934,26 @@ function App() {
             authority.chooseReward(rewardId);
           }}
         />
+        <div className="liveops-panel hud-card" aria-live="polite">
+          <div className="liveops-header">
+            <p className="hud-kicker">Live Ops</p>
+            <strong>{liveOps.fps.toFixed(0)} FPS</strong>
+          </div>
+          <div className="liveops-grid">
+            <span>Frame</span>
+            <strong>{liveOps.frameMs.toFixed(1)} ms</strong>
+            <span>Sim</span>
+            <strong>{liveOps.snapshotHz.toFixed(0)} Hz</strong>
+            <span>Draw calls</span>
+            <strong>{liveOps.drawCalls}</strong>
+            <span>Triangles</span>
+            <strong>{liveOps.triangles.toLocaleString()}</strong>
+            <span>Units</span>
+            <strong>{liveOps.units}</strong>
+            <span>FX</span>
+            <strong>{liveOps.projectiles + liveOps.floatingTexts}</strong>
+          </div>
+        </div>
       </main>
     </div>
   );

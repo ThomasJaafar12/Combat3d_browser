@@ -74,7 +74,7 @@ const characterConfigs: Record<
     modelUrl: assetUrls.characters.leader,
     animationUrls: assetUrls.characterAnimations.leader,
     targetHeight: 2.45,
-    rotationOffsetY: Math.PI,
+    rotationOffsetY: 0,
     tint: null,
   },
   companion_melee: {
@@ -87,7 +87,7 @@ const characterConfigs: Record<
       guard: assetUrls.characterAnimations.axe.guard,
     },
     targetHeight: 2.2,
-    rotationOffsetY: Math.PI,
+    rotationOffsetY: 0,
     tint: "#95b785",
   },
   companion_ranged: {
@@ -102,7 +102,7 @@ const characterConfigs: Record<
       death: assetUrls.characterAnimations.archer.death,
     },
     targetHeight: 2.12,
-    rotationOffsetY: Math.PI,
+    rotationOffsetY: 0,
     tint: "#8ab0db",
   },
   companion_support: {
@@ -116,7 +116,7 @@ const characterConfigs: Record<
       death: assetUrls.characterAnimations.archer.death,
     },
     targetHeight: 2.08,
-    rotationOffsetY: Math.PI,
+    rotationOffsetY: 0,
     tint: "#d8d2a4",
   },
   enemy_melee: {
@@ -129,7 +129,7 @@ const characterConfigs: Record<
       guard: assetUrls.characterAnimations.axe.guard,
     },
     targetHeight: 2.24,
-    rotationOffsetY: Math.PI,
+    rotationOffsetY: 0,
     tint: "#c88570",
   },
   enemy_ranged: {
@@ -143,7 +143,7 @@ const characterConfigs: Record<
       death: assetUrls.characterAnimations.archer.death,
     },
     targetHeight: 2.06,
-    rotationOffsetY: Math.PI,
+    rotationOffsetY: 0,
     tint: "#cf8c8a",
   },
   enemy_tank: {
@@ -158,7 +158,7 @@ const characterConfigs: Record<
       block: assetUrls.characterAnimations.leader.block,
     },
     targetHeight: 2.56,
-    rotationOffsetY: Math.PI,
+    rotationOffsetY: 0,
     tint: "#b36e66",
   },
 };

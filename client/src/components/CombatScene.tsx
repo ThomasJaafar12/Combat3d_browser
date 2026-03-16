@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame, type ThreeEvent } from "@react-three/fiber";
-import { Line, OrbitControls, Text } from "@react-three/drei";
+import { Line, Text } from "@react-three/drei";
 import type { CombatSnapshot } from "@/game/runtime";
 import type { SpellId, Vec3 } from "@/game/defs";
 import { prototypeCatalog } from "@/game/content";
@@ -21,6 +21,16 @@ export interface GroundPreviewState {
   spellId?: SpellId;
 }
 
+export interface ScenePerformanceSample {
+  fps: number;
+  frameMs: number;
+  drawCalls: number;
+  triangles: number;
+  units: number;
+  projectiles: number;
+  floatingTexts: number;
+}
+
 interface CombatSceneProps {
   snapshot: CombatSnapshot;
   cameraOrbit: CameraOrbitState;
@@ -29,6 +39,7 @@ interface CombatSceneProps {
   onUnitClick: (unitId: string) => void;
   groundPreview: GroundPreviewState | null;
   reviveIndicatorUnitId: string | null;
+  onPerformanceSample?: (sample: ScenePerformanceSample) => void;
 }
 
 type PresentationAnimationId =
@@ -73,7 +84,6 @@ const useWorldTexture = (url: string) => {
 
   useEffect(() => {
     let cancelled = false;
-    setTexture(null);
     loadTexture(url)
       .then((nextTexture) => {
         if (!cancelled) {
@@ -96,6 +106,37 @@ function CameraRig({ snapshot, cameraOrbit }: { snapshot: CombatSnapshot; camera
   const cameraTarget = useRef(new THREE.Vector3());
   const cameraPosition = useRef(new THREE.Vector3());
   const initializedRef = useRef(false);
+  const forwardRef = useRef(new THREE.Vector3());
+  const rightRef = useRef(new THREE.Vector3());
+  const anchorRef = useRef(new THREE.Vector3());
+  const heightOffsetRef = useRef(new THREE.Vector3());
+  const shoulderOffsetRef = useRef(new THREE.Vector3());
+  const backOffsetRef = useRef(new THREE.Vector3());
+  const desiredPositionRef = useRef(new THREE.Vector3());
+  const desiredTargetRef = useRef(new THREE.Vector3());
+  const targetBiasRef = useRef(new THREE.Vector3());
+  const rayDirectionRef = useRef(new THREE.Vector3());
+  const rayRef = useRef(new THREE.Ray());
+  const hitPointRef = useRef(new THREE.Vector3());
+  const obstacleBounds = useMemo(
+    () =>
+      snapshot.arena.obstacles
+        .filter((obstacle) => obstacle.blocksMovement)
+        .map((obstacle) => {
+          const halfExtents = new THREE.Vector3(
+            obstacle.size.x / 2 + 0.45,
+            obstacle.size.y / 2 + 0.65,
+            obstacle.size.z / 2 + 0.45,
+          );
+          const center = new THREE.Vector3(
+            obstacle.position.x,
+            obstacle.position.y + obstacle.size.y / 2,
+            obstacle.position.z,
+          );
+          return new THREE.Box3(center.clone().sub(halfExtents), center.clone().add(halfExtents));
+        }),
+    [snapshot.arena.obstacles],
+  );
 
   useFrame(({ camera }) => {
     const leader = snapshot.units.find((unit) => unit.id === snapshot.leaderId);
@@ -112,23 +153,21 @@ function CameraRig({ snapshot, cameraOrbit }: { snapshot: CombatSnapshot; camera
 
     const effectivePitch = THREE.MathUtils.clamp(cameraOrbit.pitch, 0.22, 0.68);
     const desiredDistance = THREE.MathUtils.clamp(cameraOrbit.distance, 5.8, 10.5);
-    const forward = new THREE.Vector3(Math.sin(cameraOrbit.yaw), 0, Math.cos(cameraOrbit.yaw)).normalize();
-    const right = new THREE.Vector3(forward.z, 0, -forward.x).normalize();
-    const anchor = new THREE.Vector3(leader.position.x, leader.position.y + 1.55, leader.position.z);
-    const shoulderOffset = right.clone().multiplyScalar(0.8);
-    const heightOffset = new THREE.Vector3(0, 1.2 + Math.sin(effectivePitch) * 1.8, 0);
-    const backOffset = forward
-      .clone()
-      .multiplyScalar(-(desiredDistance * Math.cos(effectivePitch) + 1.4));
+    const forward = forwardRef.current.set(Math.sin(cameraOrbit.yaw), 0, Math.cos(cameraOrbit.yaw)).normalize();
+    const right = rightRef.current.set(forward.z, 0, -forward.x).normalize();
+    const anchor = anchorRef.current.set(leader.position.x, leader.position.y + 1.55, leader.position.z);
+    const shoulderOffset = shoulderOffsetRef.current.copy(right).multiplyScalar(0.8);
+    const heightOffset = heightOffsetRef.current.set(0, 1.2 + Math.sin(effectivePitch) * 1.8, 0);
+    const backOffset = backOffsetRef.current.copy(forward).multiplyScalar(-(desiredDistance * Math.cos(effectivePitch) + 1.4));
 
-    let desiredPosition = anchor.clone().add(shoulderOffset).add(heightOffset).add(backOffset);
-    const desiredTarget = anchor
-      .clone()
-      .add(forward.clone().multiplyScalar(4.8))
+    const desiredPosition = desiredPositionRef.current.copy(anchor).add(shoulderOffset).add(heightOffset).add(backOffset);
+    const desiredTarget = desiredTargetRef.current
+      .copy(anchor)
+      .addScaledVector(forward, 4.8)
       .add(new THREE.Vector3(0, 0.35 + Math.sin(effectivePitch) * 0.35, 0));
 
     if (selectedTarget) {
-      const targetBias = new THREE.Vector3(
+      const targetBias = targetBiasRef.current.set(
         selectedTarget.position.x,
         selectedTarget.position.y + 1.1,
         selectedTarget.position.z,
@@ -136,42 +175,26 @@ function CameraRig({ snapshot, cameraOrbit }: { snapshot: CombatSnapshot; camera
       desiredTarget.lerp(targetBias, 0.18);
     }
 
-    const rayDirection = desiredPosition.clone().sub(anchor).normalize();
-    const ray = new THREE.Ray(anchor, rayDirection);
+    const rayDirection = rayDirectionRef.current.copy(desiredPosition).sub(anchor).normalize();
+    const ray = rayRef.current;
+    ray.origin.copy(anchor);
+    ray.direction.copy(rayDirection);
     const desiredLength = desiredPosition.distanceTo(anchor);
     let nearestHitDistance = desiredLength;
 
-    snapshot.arena.obstacles
-      .filter((obstacle) => obstacle.blocksMovement)
-      .forEach((obstacle) => {
-        const expandedHalfExtents = new THREE.Vector3(
-          obstacle.size.x / 2 + 0.45,
-          obstacle.size.y / 2 + 0.65,
-          obstacle.size.z / 2 + 0.45,
-        );
-        const obstacleCenter = new THREE.Vector3(
-          obstacle.position.x,
-          obstacle.position.y + obstacle.size.y / 2,
-          obstacle.position.z,
-        );
-        const bounds = new THREE.Box3(
-          obstacleCenter.clone().sub(expandedHalfExtents),
-          obstacleCenter.clone().add(expandedHalfExtents),
-        );
-        const hitPoint = ray.intersectBox(bounds, new THREE.Vector3());
-        if (!hitPoint) {
-          return;
-        }
-        const hitDistance = hitPoint.distanceTo(anchor);
-        if (hitDistance > 0 && hitDistance < nearestHitDistance) {
-          nearestHitDistance = hitDistance;
-        }
-      });
+    obstacleBounds.forEach((bounds) => {
+      const hitPoint = ray.intersectBox(bounds, hitPointRef.current);
+      if (!hitPoint) {
+        return;
+      }
+      const hitDistance = hitPoint.distanceTo(anchor);
+      if (hitDistance > 0 && hitDistance < nearestHitDistance) {
+        nearestHitDistance = hitDistance;
+      }
+    });
 
     if (nearestHitDistance < desiredLength) {
-      desiredPosition = anchor
-        .clone()
-        .add(rayDirection.multiplyScalar(Math.max(2.8, nearestHitDistance - 0.55)));
+      desiredPosition.copy(anchor).addScaledVector(rayDirection, Math.max(2.8, nearestHitDistance - 0.55));
     }
 
     if (!initializedRef.current) {
@@ -185,6 +208,55 @@ function CameraRig({ snapshot, cameraOrbit }: { snapshot: CombatSnapshot; camera
 
     camera.position.copy(cameraPosition.current);
     camera.lookAt(cameraTarget.current);
+  });
+
+  return null;
+}
+
+function LiveOpsProbe({
+  units,
+  projectiles,
+  floatingTexts,
+  onSample,
+}: {
+  units: number;
+  projectiles: number;
+  floatingTexts: number;
+  onSample?: (sample: ScenePerformanceSample) => void;
+}) {
+  const accumulatorRef = useRef({
+    elapsed: 0,
+    frames: 0,
+    frameMs: 0,
+  });
+
+  useFrame(({ gl }, delta) => {
+    if (!onSample) {
+      return;
+    }
+
+    const accumulator = accumulatorRef.current;
+    accumulator.elapsed += delta;
+    accumulator.frames += 1;
+    accumulator.frameMs += delta * 1000;
+
+    if (accumulator.elapsed < 0.2) {
+      return;
+    }
+
+    onSample({
+      fps: accumulator.frames / accumulator.elapsed,
+      frameMs: accumulator.frameMs / accumulator.frames,
+      drawCalls: gl.info.render.calls,
+      triangles: gl.info.render.triangles,
+      units,
+      projectiles,
+      floatingTexts,
+    });
+
+    accumulator.elapsed = 0;
+    accumulator.frames = 0;
+    accumulator.frameMs = 0;
   });
 
   return null;
@@ -266,6 +338,16 @@ function HealthBar({ unit }: { unit: CombatSnapshot["units"][number] }) {
   );
 }
 
+const MemoHealthBar = memo(
+  HealthBar,
+  (previous, next) =>
+    previous.unit.currentHp === next.unit.currentHp &&
+    previous.unit.isDead === next.unit.isDead &&
+    previous.unit.isDowned === next.unit.isDowned &&
+    previous.unit.definitionId === next.unit.definitionId &&
+    previous.unit.faction === next.unit.faction,
+);
+
 function UnitLabel({ unit }: { unit: CombatSnapshot["units"][number] }) {
   const statusLine = unit.isDead ? "Defeated" : unit.isDowned ? "Downed" : prototypeCatalog.units[unit.definitionId].group;
 
@@ -296,6 +378,15 @@ function UnitLabel({ unit }: { unit: CombatSnapshot["units"][number] }) {
     </>
   );
 }
+
+const MemoUnitLabel = memo(
+  UnitLabel,
+  (previous, next) =>
+    previous.unit.name === next.unit.name &&
+    previous.unit.definitionId === next.unit.definitionId &&
+    previous.unit.isDead === next.unit.isDead &&
+    previous.unit.isDowned === next.unit.isDowned,
+);
 
 function UnitModel({
   unit,
@@ -412,18 +503,19 @@ function UnitModel({
   return (
     <group
       position={[unit.position.x, unit.position.y, unit.position.z]}
-      rotation={[0, unit.facingYaw + (model?.rotationOffsetY ?? 0), 0]}
       onPointerDown={(event: ThreeEvent<PointerEvent>) => {
         event.stopPropagation();
         onClick(unit.id);
       }}
     >
-      {model ? <primitive object={model.scene} /> : null}
-      <HealthBar unit={unit} />
-      <UnitLabel unit={unit} />
+      <group rotation={[0, unit.facingYaw + (model?.rotationOffsetY ?? 0), 0]}>
+        {model ? <primitive object={model.scene} /> : null}
+      </group>
+      <MemoHealthBar unit={unit} />
+      <MemoUnitLabel unit={unit} />
       {isSelected ? (
         <>
-          <GroundIndicator textureUrl={selectedMarkerUrl} point={unit.position} size={2.1} />
+          <GroundIndicator textureUrl={selectedMarkerUrl} point={{ x: 0, y: 0, z: 0 }} size={2.1} />
           <BillboardIndicator
             textureUrl={selectedMarkerUrl}
             point={{ x: 0, y: 3.45, z: 0 }}
@@ -435,6 +527,25 @@ function UnitModel({
     </group>
   );
 }
+
+const MemoUnitModel = memo(
+  UnitModel,
+  (previous, next) =>
+    previous.isSelected === next.isSelected &&
+    previous.unit.id === next.unit.id &&
+    previous.unit.definitionId === next.unit.definitionId &&
+    previous.unit.position.x === next.unit.position.x &&
+    previous.unit.position.y === next.unit.position.y &&
+    previous.unit.position.z === next.unit.position.z &&
+    previous.unit.facingYaw === next.unit.facingYaw &&
+    previous.unit.velocity.x === next.unit.velocity.x &&
+    previous.unit.velocity.z === next.unit.velocity.z &&
+    previous.unit.currentHp === next.unit.currentHp &&
+    previous.unit.basicCooldownMs === next.unit.basicCooldownMs &&
+    previous.unit.isDead === next.unit.isDead &&
+    previous.unit.isDowned === next.unit.isDowned &&
+    previous.unit.castState?.spellId === next.unit.castState?.spellId,
+);
 
 function ArenaGround({ snapshot }: { snapshot: CombatSnapshot }) {
   const ground = useModelAsset(snapshot.arena.groundModelUrl, {
@@ -455,6 +566,14 @@ function ArenaGround({ snapshot }: { snapshot: CombatSnapshot }) {
   return <primitive object={ground.scene} />;
 }
 
+const MemoArenaGround = memo(
+  ArenaGround,
+  (previous, next) =>
+    previous.snapshot.arena.groundModelUrl === next.snapshot.arena.groundModelUrl &&
+    previous.snapshot.arena.bounds.width === next.snapshot.arena.bounds.width &&
+    previous.snapshot.arena.bounds.depth === next.snapshot.arena.bounds.depth,
+);
+
 function ArenaObstacles({ snapshot }: { snapshot: CombatSnapshot }) {
   return (
     <>
@@ -464,6 +583,11 @@ function ArenaObstacles({ snapshot }: { snapshot: CombatSnapshot }) {
     </>
   );
 }
+
+const MemoArenaObstacles = memo(
+  ArenaObstacles,
+  (previous, next) => previous.snapshot.arena.obstacles === next.snapshot.arena.obstacles,
+);
 
 function ArenaObstacleModel({ obstacle }: { obstacle: CombatSnapshot["arena"]["obstacles"][number] }) {
   const model = useModelAsset(obstacle.modelUrl, obstacle.size);
@@ -588,14 +712,18 @@ export function CombatScene({
   onUnitClick,
   groundPreview,
   reviveIndicatorUnitId,
+  onPerformanceSample,
 }: CombatSceneProps) {
-  const boundsPoints: [number, number, number][] = [
-    [-snapshot.arena.bounds.width / 2, 0, -snapshot.arena.bounds.depth / 2],
-    [snapshot.arena.bounds.width / 2, 0, -snapshot.arena.bounds.depth / 2],
-    [snapshot.arena.bounds.width / 2, 0, snapshot.arena.bounds.depth / 2],
-    [-snapshot.arena.bounds.width / 2, 0, snapshot.arena.bounds.depth / 2],
-    [-snapshot.arena.bounds.width / 2, 0, -snapshot.arena.bounds.depth / 2],
-  ];
+  const boundsPoints: [number, number, number][] = useMemo(
+    () => [
+      [-snapshot.arena.bounds.width / 2, 0, -snapshot.arena.bounds.depth / 2],
+      [snapshot.arena.bounds.width / 2, 0, -snapshot.arena.bounds.depth / 2],
+      [snapshot.arena.bounds.width / 2, 0, snapshot.arena.bounds.depth / 2],
+      [-snapshot.arena.bounds.width / 2, 0, snapshot.arena.bounds.depth / 2],
+      [-snapshot.arena.bounds.width / 2, 0, -snapshot.arena.bounds.depth / 2],
+    ],
+    [snapshot.arena.bounds.depth, snapshot.arena.bounds.width],
+  );
   const reviveTarget =
     reviveIndicatorUnitId ? snapshot.units.find((unit) => unit.id === reviveIndicatorUnitId) ?? null : null;
 
@@ -606,17 +734,17 @@ export function CombatScene({
       <fog attach="fog" args={["#e7dbc4", 20, 44]} />
       <ambientLight intensity={1.15} />
       <hemisphereLight intensity={0.75} groundColor="#8f744d" color="#fff2d8" />
-      <directionalLight
-        castShadow
-        intensity={2.05}
-        position={[14, 20, 6]}
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
+      <directionalLight intensity={1.8} position={[14, 20, 6]} />
+      <LiveOpsProbe
+        units={snapshot.units.length}
+        projectiles={snapshot.projectiles.length}
+        floatingTexts={snapshot.floatingTexts.length}
+        onSample={onPerformanceSample}
       />
 
       <Line points={boundsPoints} color="#8f714b" lineWidth={1.5} />
       <group>
-        <ArenaGround snapshot={snapshot} />
+        <MemoArenaGround snapshot={snapshot} />
         <mesh
           receiveShadow
           visible={false}
@@ -644,12 +772,12 @@ export function CombatScene({
         </mesh>
       </group>
 
-      <ArenaObstacles snapshot={snapshot} />
+      <MemoArenaObstacles snapshot={snapshot} />
       <Zones snapshot={snapshot} />
       <Projectiles snapshot={snapshot} />
 
       {snapshot.units.map((unit) => (
-        <UnitModel
+        <MemoUnitModel
           key={unit.id}
           unit={unit}
           isSelected={snapshot.selectedTargetId === unit.id}
@@ -671,7 +799,6 @@ export function CombatScene({
       ) : null}
 
       <FloatingTexts snapshot={snapshot} />
-      <OrbitControls enabled={false} />
     </>
   );
 }

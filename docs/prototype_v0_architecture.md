@@ -12,12 +12,15 @@
 - That loader owns FBX/GLTF file handling, per-model caching, normalization, and per-instance cloning so the scene components do not need file-format knowledge.
 - Arena layout data now lives in `client/src/game/environment/arena.ts`; rendering consumes the data-driven arena definition instead of hardcoding obstacle geometry in the scene.
 - The HUD lives in `client/src/components/HUD/CombatHUD.tsx` and reads snapshots only; it does not mutate simulation state directly beyond invoking existing authority intents.
+- The live-ops diagnostics panel is presentation-only: `CombatScene` samples renderer stats and reports them upward, while the viewport UI simply displays the metrics.
 
 ## Combat state ownership
 - V0 will keep gameplay state in one authoritative simulation module.
 - React components will render snapshots and submit intents only.
 - This preserves a clean handoff to a future network transport or SpacetimeDB-backed server.
   The current implementation lives in `client/src/game/engine.ts` and exposes subscribe/getSnapshot/mutation APIs.
+- The client loop now advances that authority with a fixed 60 Hz step instead of simulating directly from raw `requestAnimationFrame` delta so gameplay cost is bounded on high-refresh displays.
+- Snapshot publication is intentionally throttled in the authority layer, and the large debug shell can lag slightly behind via deferred rendering without affecting the main gameplay/HUD path.
 
 ## Spell pipeline overview
 - Planned path: input intent -> validation -> target resolution -> shared effect application -> feedback event emission.
@@ -43,4 +46,4 @@
 - Replace the local authority transport with a real server adapter when the Rust/SpacetimeDB toolchain is available.
 - Move definitions into a shared package once the client and server both compile in this repo.
 - Add an authority event stream or equivalent bridge for audio/feedback systems so UI polish remains presentation-only.
-- Finish the camera/debug/test passes while keeping the authority/data layers unchanged.
+- Finish the audio/debug/test passes and the remaining combat-feedback work while keeping the authority/data layers unchanged.

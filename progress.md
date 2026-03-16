@@ -29,6 +29,23 @@ Original prompt: Build a 3D in-browser RPG combat prototype with a leader, three
 - Added a battlefield-aware camera pass that biases framing toward the engagement point, widens default zoom/pitch, and applies lightweight obstacle avoidance instead of only looking a few meters in front of the leader.
 - Verified the new slice with repeated `npm.cmd run build` runs and Playwright screenshot/state captures against `http://127.0.0.1:4173`.
 - Current validation status: curated models, HUD, and the improved camera render in-browser, but the automated mobile-sized capture still favors the center lane and one GLTF texture warning may still be cached by the running dev server.
+- Locked the app shell to the viewport height so the main game window no longer forces page scrolling; only the setup/debug column scrolls when it overflows.
+- Disabled wheel zoom for now and kept the camera at a fixed third-person distance.
+- Hardened leader movement input by normalizing both physical key codes and typed letters (`WASD`, arrows, and `ZQSD`), auto-focusing the viewport, and listening in the keyboard capture phase so UI focus is less likely to swallow movement keys.
+- Fixed the authority update loop so leader movement advances during both `loadout` and `battle`; Playwright validation now shows the leader position changing in `loadout` before battle start.
+- Investigated a perceived third-person inversion bug and confirmed the camera rig was not the primary fault. The actual issues were an inverted local-to-world movement basis plus an unnecessary 180-degree presentation yaw offset on the character models.
+- Corrected movement so forward input maps to camera-forward on the ground plane, fixed the yaw rotation matrix in authority movement, and removed the model-side 180-degree rotation offset so units face the direction of travel/action.
+- Separated unit overlay labels/bars/selection markers from the rotating model transform so they stay readable while the character turns.
+- Fixed the remaining strafe inversion by flipping the local horizontal input sign so `A` / left now maps to camera-left and `D` / right maps to camera-right.
+- Identified the main CPU bottleneck as snapshot churn: the authority was cloning and publishing a full immutable snapshot every simulation step, and the UI consumed those updates directly. Throttled `advanceTime` snapshot emission to 30 Hz while preserving immediate forced emits for commands and phase changes.
+- Identified the main GPU bottleneck as overkill render settings for the current scene: dynamic shadow mapping plus a higher-resolution antialiased canvas. Switched the canvas to a capped DPR, disabled antialiasing, and removed the real-time shadow light path.
+- Validation after the liveops pass: `npm.cmd run build` passes, the left-strafe Playwright capture now ends with the leader at negative X (`x: -4.7`), and the scene remains visually synchronized after removing the extra App-side snapshot queue.
+- Added an in-viewport live-ops panel with FPS, frame time, simulation snapshot rate, draw calls, triangle count, unit count, and FX count so runtime health is visible without opening devtools.
+- Optimized the hot render path further by memoizing stable scene pieces (`ArenaGround`, `ArenaObstacles`, unit labels/health bars, and unit models), deferring the large debug shell with `useDeferredValue`, and removing avoidable per-frame camera collision allocations.
+- The live Playwright capture now shows the overlay populated in-browser. Headless Chromium on SwiftShader still reports much lower FPS than a hardware-accelerated local browser, but draw calls are down to the teens and geometry cost remains low enough that remaining low numbers are dominated by the headless/software-render test environment rather than scene complexity.
+- Investigated movement-specific local FPS drops. The strongest likely bottleneck was not scene geometry but browser compositing: large `backdrop-filter` UI layers were repainting over the moving 3D scene. Replaced those blurred translucent panels with opaque layered backgrounds and paint containment to reduce movement-time UI cost.
+- Decoupled authority simulation from monitor refresh by switching the main loop to a fixed 60 Hz simulation step. This prevents 144 Hz / 240 Hz displays from multiplying CPU cost just because `requestAnimationFrame` fires more often.
+- Raised snapshot publication from 30 Hz to 60 Hz after the earlier render/UI reductions so motion updates stay more responsive without returning to the previous full-churn behavior.
 
 ## TODO
 - Add the audio event bridge/system and wire positional/UI playback without coupling it to simulation logic.
