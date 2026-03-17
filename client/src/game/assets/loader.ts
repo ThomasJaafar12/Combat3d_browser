@@ -4,7 +4,9 @@ import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { clone } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { assetUrls } from "@/game/assets";
+import { prototypeCatalog } from "@/game/content";
 import type { CharacterPresentationId } from "@/game/defs";
+import { arenaDefinition } from "@/game/environment/arena";
 
 type PresentationAnimationId =
   | "idle"
@@ -58,7 +60,37 @@ const modelPromiseCache = new Map<string, Promise<LoadedModelAsset>>();
 const characterPromiseCache = new Map<CharacterPresentationId, Promise<CharacterBundle>>();
 
 const sharedFbxLoader = new FBXLoader();
-const sharedGltfLoader = new GLTFLoader();
+const sharedLoadingManager = new THREE.LoadingManager();
+
+const environmentMaterialProxy = (() => {
+  const svgByKind = {
+    wood: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" fill="#8b6037"/><rect y="8" width="16" height="2" fill="#6c4524" opacity="0.45"/></svg>`,
+    )}`,
+    plaster: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" fill="#dcc8ac"/><rect x="2" y="2" width="12" height="12" fill="#efe0c8" opacity="0.32"/></svg>`,
+    )}`,
+    brick: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" fill="#b9ada0"/><path d="M0 5h16M0 11h16M5 0v5M11 5v6M5 11v5" stroke="#95897d" stroke-width="1"/></svg>`,
+    )}`,
+  };
+
+  return (url: string) => {
+    if (!url.includes("arena_outdoor/materials/") && !url.includes("../materials/")) {
+      return null;
+    }
+    if (url.includes("wood_trim")) {
+      return svgByKind.wood;
+    }
+    if (url.includes("plaster")) {
+      return svgByKind.plaster;
+    }
+    return svgByKind.brick;
+  };
+})();
+
+sharedLoadingManager.setURLModifier((url) => environmentMaterialProxy(url) ?? url);
+const sharedGltfLoader = new GLTFLoader(sharedLoadingManager);
 
 const characterConfigs: Record<
   CharacterPresentationId,
@@ -173,6 +205,15 @@ const environmentModelUrls: Record<EnvironmentModelId, string> = {
   metal_fence: assetUrls.environment.metalFence,
   timber_wall: assetUrls.environment.timberWall,
 };
+
+const usedCharacterPresentationIds = [
+  ...new Set(Object.values(prototypeCatalog.units).map((definition) => definition.presentationId)),
+];
+
+const usedEnvironmentModelUrls = [
+  arenaDefinition.groundModelUrl,
+  ...new Set(arenaDefinition.obstacles.map((obstacle) => obstacle.modelUrl)),
+];
 
 const setMeshShadows = (root: THREE.Object3D) => {
   root.traverse((child) => {
@@ -411,6 +452,6 @@ export const useModelAsset = (modelUrl: string, fitSize?: THREE.Vector3Like) =>
 
 export const preloadPresentationAssets = () =>
   Promise.all([
-    ...Object.keys(characterConfigs).map((presentationId) => loadCharacterModel(presentationId as CharacterPresentationId)),
-    ...Object.keys(environmentModelUrls).map((modelId) => loadEnvironmentModel(modelId as EnvironmentModelId)),
+    ...usedCharacterPresentationIds.map((presentationId) => loadCharacterModel(presentationId)),
+    ...usedEnvironmentModelUrls.map((modelUrl) => loadModelAsset(modelUrl)),
   ]);

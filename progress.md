@@ -46,8 +46,15 @@ Original prompt: Build a 3D in-browser RPG combat prototype with a leader, three
 - Investigated movement-specific local FPS drops. The strongest likely bottleneck was not scene geometry but browser compositing: large `backdrop-filter` UI layers were repainting over the moving 3D scene. Replaced those blurred translucent panels with opaque layered backgrounds and paint containment to reduce movement-time UI cost.
 - Decoupled authority simulation from monitor refresh by switching the main loop to a fixed 60 Hz simulation step. This prevents 144 Hz / 240 Hz displays from multiplying CPU cost just because `requestAnimationFrame` fires more often.
 - Raised snapshot publication from 30 Hz to 60 Hz after the earlier render/UI reductions so motion updates stay more responsive without returning to the previous full-churn behavior.
+- Added a presentation-event seam to the authority snapshot so audio and lightweight visual polish can react to combat outcomes without owning gameplay state.
+- Added `client/src/game/audio/audioSystem.ts` as a fail-soft browser audio bridge and wired attack/cast/impact/downed/revive/level-up/UI confirmation cues from the app shell.
+- Expanded the smoke coverage into `tests/combat.smoke.ts` / `client/tests/combat.smoke.ts`, covering recruit -> battle start -> placed order -> ground spell -> revive -> wave clear -> reward selection. `npm.cmd run smoke -- http://127.0.0.1:5173` now passes.
+- Added compact debug controls for god mode, cooldown bypass, AI labels, fast-forward, debug spawning, forced ally downing, and wave clearing, plus richer live readouts for AI state and cooldowns.
+- Added lightweight combat-feedback polish: status icons over units, floating hit/reward sprites, and AI state labels behind the existing debug flag.
+- Investigated the remaining arena GLTF texture warning, confirmed it only appeared on stale dev-server runs, then cleaned every arena-outdoor GLTF in-source to remove those broken material texture references entirely.
+- Fresh validation on a clean `npm.cmd run dev -- --host 127.0.0.1 --port 5173` server: `npm.cmd run build` passes, `npm.cmd run smoke -- http://127.0.0.1:5173` passes, the Playwright screenshot/state capture updates cleanly, and a targeted Playwright console probe returns `[]` for console errors.
 
 ## TODO
-- Add the audio event bridge/system and wire positional/UI playback without coupling it to simulation logic.
-- Expand smoke coverage to recruit companions, place an area order, cast, revive, and clear the wave from Playwright instead of only starting battle.
-- Add the debug/stability overlay and the remaining combat-feedback polish (status indicators, hit reactions, lighter-weight VFX).
+- Improve camera readability further around large close-up props; the archway can still dominate the frame during some movements.
+- Consider code-splitting the heaviest client chunk now that the runtime path is more stable and measurable.
+- Expand smoke assertions further around companion autonomy and debug-toggle side effects if this prototype continues evolving.

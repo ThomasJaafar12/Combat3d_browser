@@ -283,6 +283,50 @@ body {
   pointer-events: none;
 }
 
+.debug-overlay {
+  position: absolute;
+  top: 194px;
+  right: 18px;
+  z-index: 5;
+  width: min(300px, calc(100% - 36px));
+}
+
+.debug-toggle-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.debug-chip-button {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid rgba(83, 58, 33, 0.14);
+  border-radius: 12px;
+  background: rgba(255, 252, 246, 0.96);
+  color: #3f2f22;
+  font: inherit;
+  cursor: pointer;
+}
+
+.debug-chip-button.is-active {
+  background: rgba(236, 222, 184, 0.98);
+  border-color: rgba(120, 85, 33, 0.28);
+}
+
+.debug-readout {
+  display: grid;
+  grid-template-columns: minmax(0, 70px) minmax(0, 1fr);
+  gap: 8px 12px;
+  margin-top: 12px;
+  font-size: 0.82rem;
+  color: #594534;
+}
+
+.debug-readout strong {
+  font-weight: 600;
+}
+
 .hud-header {
   display: flex;
   justify-content: space-between;

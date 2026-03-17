@@ -29,6 +29,7 @@ import type {
   CombatSnapshot,
   DebugFlag,
   FloatingText,
+  PresentationEvent,
   RewardChoiceState,
   RuntimeBehaviorSettings,
   RuntimeCastState,
@@ -67,6 +68,7 @@ export class CombatAuthority {
   private projectiles: CombatSnapshot["projectiles"] = [];
   private zones: CombatSnapshot["zones"] = [];
   private floatingTexts: FloatingText[] = [];
+  private presentationEvents: PresentationEvent[] = [];
   private rewardChoices: RewardChoiceState = { choices: [], pendingSelection: false };
   private appliedRewards: RewardId[] = [];
   private totalXp = 0;
@@ -159,6 +161,10 @@ export class CombatAuthority {
         ...entry,
         position: roundVec3(entry.position),
       })),
+      presentationEvents: this.presentationEvents.map((event) => ({
+        ...event,
+        position: event.position ? roundVec3(event.position) : null,
+      })),
       rewardChoices: {
         choices: [...this.rewardChoices.choices],
         pendingSelection: this.rewardChoices.pendingSelection,
@@ -178,6 +184,7 @@ export class CombatAuthority {
     this.projectiles = [];
     this.zones = [];
     this.floatingTexts = [];
+    this.presentationEvents = [];
     this.timeMs = 0;
     this.phase = "loadout";
     this.selectedTargetId = null;
@@ -408,6 +415,12 @@ export class CombatAuthority {
     target.currentResource = Math.round(this.getEffectiveStats(target).maxResource * 0.35);
     target.statuses = target.statuses.filter((status) => status.id !== "downed" && status.id !== "reviving");
     this.floatingTexts.push(this.makeFloatingText("Revived", "status", target.position));
+    this.queuePresentationEvent({
+      kind: "revive_complete",
+      sourceUnitId: this.leaderId,
+      targetUnitId,
+      position: target.position,
+    });
     this.emit();
     return true;
   }
@@ -505,6 +518,12 @@ export class CombatAuthority {
     const requiredXp = this.level * LEVEL_XP_STEP;
     if (this.totalXp >= requiredXp && !this.rewardChoices.pendingSelection) {
       this.level += 1;
+      this.queuePresentationEvent({
+        kind: "level_up",
+        sourceUnitId: this.leaderId,
+        targetUnitId: this.leaderId,
+        position: arenaDefinition.playerStart,
+      });
       this.rewardChoices = {
         choices: this.pickRewardChoices(),
         pendingSelection: true,
@@ -537,6 +556,86 @@ export class CombatAuthority {
     this.emit();
   }
 
+  spawnDebugEnemy(definitionId: UnitArchetypeId = "enemy_melee_chaser") {
+    if (this.phase !== "battle") {
+      return false;
+    }
+
+    const spawnIndex = [...this.unitsById.values()].filter((unit) => unit.faction === "enemy").length;
+    const spawn = arenaDefinition.enemySpawnPoints[spawnIndex % arenaDefinition.enemySpawnPoints.length] ?? arenaDefinition.enemySpawnPoints[0];
+    const unit = this.createUnit(definitionId, spawn);
+    unit.order = this.createOrderState("follow_me");
+    unit.aiState.stateLabel = "Debug spawn";
+    this.unitsById.set(unit.id, unit);
+    this.emit();
+    return true;
+  }
+
+  spawnDebugCompanion(definitionId: UnitArchetypeId = "companion_vanguard") {
+    if (definitionId === "leader_captain" || definitionId.startsWith("enemy_")) {
+      return false;
+    }
+
+    if (this.phase === "loadout") {
+      return this.recruitCompanion(definitionId);
+    }
+    if (this.phase !== "battle") {
+      return false;
+    }
+
+    const position = addVec3(
+      this.unitsById.get(this.leaderId)?.position ?? arenaDefinition.playerStart,
+      vec3(-1.2 + this.recruitedCompanionIds.length * 1.1, 0, 1.4),
+    );
+    const unit = this.createUnit(definitionId, position);
+    unit.order = this.createOrderState("follow_me", arenaDefinition.defendPoint);
+    unit.aiState.anchorPoint = arenaDefinition.defendPoint;
+    unit.aiState.stateLabel = "Debug spawn";
+    this.unitsById.set(unit.id, unit);
+    this.recruitedCompanionIds = [...this.recruitedCompanionIds, unit.id];
+    this.emit();
+    return true;
+  }
+
+  downDebugCompanion(targetUnitId?: string) {
+    const leaderPosition = this.unitsById.get(this.leaderId)?.position ?? arenaDefinition.playerStart;
+    const target =
+      (targetUnitId ? this.unitsById.get(targetUnitId) : null) ??
+      this.recruitedCompanionIds
+        .map((unitId) => this.unitsById.get(unitId))
+        .filter((unit): unit is RuntimeUnit => !!unit && !unit.isDead && !unit.isDowned)
+        .sort((left, right) => distance2D(left.position, leaderPosition) - distance2D(right.position, leaderPosition))[0];
+
+    if (!target) {
+      return false;
+    }
+
+    target.position = this.resolvePosition(target, addVec3(leaderPosition, vec3(1.2, 0, 0.8)));
+    this.applyDamage(target.id, this.getEffectiveStats(target).maxHp + 999, this.leaderId);
+    return true;
+  }
+
+  clearDebugEnemies() {
+    let cleared = false;
+    this.unitsById.forEach((unit) => {
+      if (unit.faction !== "enemy" || unit.isDead) {
+        return;
+      }
+      unit.currentHp = 0;
+      unit.isDead = true;
+      unit.isDowned = false;
+      cleared = true;
+    });
+
+    if (!cleared) {
+      return false;
+    }
+
+    this.evaluateEndStates();
+    this.emit();
+    return true;
+  }
+
   advanceTime(ms: number) {
     const steps = Math.max(1, Math.ceil(ms / 50));
     const stepMs = ms / steps;
@@ -554,6 +653,7 @@ export class CombatAuthority {
     this.lastSnapshotEmitMs = this.timeMs;
     const snapshot = this.getSnapshot();
     this.listeners.forEach((listener) => listener(snapshot));
+    this.presentationEvents = [];
   }
 
   private tick(deltaMs: number) {
@@ -855,8 +955,22 @@ export class CombatAuthority {
         const target = this.unitsById.get(currentProjectile.targetUnitId!);
         if (target && !target.isDead) {
           if (currentProjectile.spellId) {
+            this.queuePresentationEvent({
+              kind: "spell_impact",
+              sourceUnitId: currentProjectile.sourceUnitId,
+              targetUnitId: target.id,
+              position: target.position,
+              spellId: currentProjectile.spellId,
+            });
             this.applySpellEffectsToUnit(currentProjectile.sourceUnitId, target, currentProjectile.spellId);
           } else if (currentProjectile.weaponId) {
+            this.queuePresentationEvent({
+              kind: "basic_attack_hit",
+              sourceUnitId: currentProjectile.sourceUnitId,
+              targetUnitId: target.id,
+              position: target.position,
+              weaponId: currentProjectile.weaponId,
+            });
             this.applyDamage(target.id, currentProjectile.power, currentProjectile.sourceUnitId);
           }
         }
@@ -998,6 +1112,13 @@ export class CombatAuthority {
         hitsFaction: target.faction,
       });
     } else {
+      this.queuePresentationEvent({
+        kind: "basic_attack_hit",
+        sourceUnitId: attacker.id,
+        targetUnitId: target.id,
+        position: target.position,
+        weaponId: attacker.weaponId,
+      });
       this.applyDamage(target.id, this.calculateWeaponDamage(attacker, weapon.baseDamage, target), attacker.id);
     }
 
@@ -1053,6 +1174,14 @@ export class CombatAuthority {
       caster.facingYaw = directionToYaw(request.direction);
     }
 
+    this.queuePresentationEvent({
+      kind: "spell_cast",
+      sourceUnitId: caster.id,
+      targetUnitId: request.targetUnitId,
+      position: caster.position,
+      spellId,
+    });
+
     return true;
   }
 
@@ -1093,6 +1222,13 @@ export class CombatAuthority {
   private resolveSpellCast(caster: RuntimeUnit, castState: RuntimeCastState) {
     const spell = this.getSpellDefinition(castState.spellId);
     if (spell.targetingMode === "self") {
+      this.queuePresentationEvent({
+        kind: "spell_impact",
+        sourceUnitId: caster.id,
+        targetUnitId: caster.id,
+        position: caster.position,
+        spellId: spell.id,
+      });
       if (spell.areaShape === "circle" && spell.areaRadius) {
         this.applyAreaSpell(caster, spell.id, caster.position, spell.areaRadius, caster.faction);
       } else {
@@ -1102,6 +1238,13 @@ export class CombatAuthority {
     }
 
     if (spell.targetingMode === "ground" && castState.targetPoint) {
+      this.queuePresentationEvent({
+        kind: "spell_impact",
+        sourceUnitId: caster.id,
+        targetUnitId: null,
+        position: castState.targetPoint,
+        spellId: spell.id,
+      });
       this.applyAreaSpell(caster, spell.id, castState.targetPoint, spell.areaRadius ?? 0, caster.faction === "enemy" ? "leader_party" : "enemy");
       return;
     }
@@ -1111,6 +1254,13 @@ export class CombatAuthority {
         castState.direction && length2D(castState.direction) > 0.01
           ? normalize2D(castState.direction)
           : yawToDirection(caster.facingYaw);
+      this.queuePresentationEvent({
+        kind: "spell_impact",
+        sourceUnitId: caster.id,
+        targetUnitId: null,
+        position: addVec3(caster.position, scaleVec3(direction, (spell.lineLength ?? spell.range) * 0.5)),
+        spellId: spell.id,
+      });
       this.applyLineSpell(caster, spell.id, direction, spell.lineLength ?? spell.range);
       return;
     }
@@ -1138,6 +1288,13 @@ export class CombatAuthority {
       return;
     }
 
+    this.queuePresentationEvent({
+      kind: "spell_impact",
+      sourceUnitId: caster.id,
+      targetUnitId: target.id,
+      position: target.position,
+      spellId: spell.id,
+    });
     this.applySpellEffectsToUnit(caster.id, target, spell.id);
   }
 
@@ -1452,11 +1609,23 @@ export class CombatAuthority {
       unit.bleedOutMs = DOWNED_BLEED_OUT_MS;
       unit.currentHp = 0;
       this.upsertStatus(unit, "downed", 1, DOWNED_BLEED_OUT_MS, unit.lastDamagedByUnitId);
+      this.queuePresentationEvent({
+        kind: "unit_downed",
+        sourceUnitId: unit.lastDamagedByUnitId,
+        targetUnitId: unit.id,
+        position: unit.position,
+      });
       return;
     }
 
     unit.isDead = true;
     unit.currentHp = 0;
+    this.queuePresentationEvent({
+      kind: "unit_downed",
+      sourceUnitId: unit.lastDamagedByUnitId,
+      targetUnitId: unit.id,
+      position: unit.position,
+    });
   }
 
   private upsertStatus(
@@ -1547,6 +1716,22 @@ export class CombatAuthority {
       position: { ...position, y: position.y + 1.8 },
       remainingMs: kind === "reward" ? 2200 : 1200,
     };
+  }
+
+  private queuePresentationEvent(
+    event: Omit<PresentationEvent, "id" | "timeMs" | "spellId" | "weaponId"> &
+      Partial<Pick<PresentationEvent, "spellId" | "weaponId">>,
+  ) {
+    this.presentationEvents.push({
+      id: `event_${this.nextId()}`,
+      timeMs: this.timeMs,
+      kind: event.kind,
+      sourceUnitId: event.sourceUnitId,
+      targetUnitId: event.targetUnitId,
+      position: event.position ? { ...event.position } : null,
+      spellId: event.spellId ?? null,
+      weaponId: event.weaponId ?? null,
+    });
   }
 
   private nextId() {

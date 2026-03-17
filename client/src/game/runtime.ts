@@ -123,6 +123,25 @@ export interface FloatingText {
   remainingMs: number;
 }
 
+export type PresentationEventKind =
+  | "basic_attack_hit"
+  | "spell_cast"
+  | "spell_impact"
+  | "unit_downed"
+  | "revive_complete"
+  | "level_up";
+
+export interface PresentationEvent {
+  id: string;
+  kind: PresentationEventKind;
+  timeMs: number;
+  sourceUnitId: string | null;
+  targetUnitId: string | null;
+  position: Vec3 | null;
+  spellId: SpellId | null;
+  weaponId: WeaponId | null;
+}
+
 export interface RewardChoiceState {
   choices: RewardId[];
   pendingSelection: boolean;
@@ -176,6 +195,7 @@ export interface CombatSnapshot {
   projectiles: RuntimeProjectile[];
   zones: RuntimeZone[];
   floatingTexts: FloatingText[];
+  presentationEvents: PresentationEvent[];
   rewardChoices: RewardChoiceState;
   appliedRewards: RewardId[];
   totalXp: number;

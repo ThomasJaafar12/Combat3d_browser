@@ -4,10 +4,11 @@ import { CombatScene, type GroundPreviewState, type ScenePerformanceSample } fro
 import { CombatHUD } from "@/components/HUD/CombatHUD";
 import { featureFlags } from "@/config/featureFlags";
 import { preloadPresentationAssets } from "@/game/assets/loader";
+import { createCombatAudioSystem } from "@/game/audio/audioSystem";
 import { assetAudit } from "@/game/assetAudit";
 import { catalogSummary, prototypeCatalog } from "@/game/content";
 import { createCombatAuthority, reviveChannelMs } from "@/game/engine";
-import type { SpellId } from "@/game/defs";
+import type { RewardId, SpellId } from "@/game/defs";
 import {
   type GroundTargetOrderId,
   type OrderTargetingState,
@@ -46,11 +47,16 @@ const summarizeSnapshot = (snapshot: CombatSnapshot) => {
     mode: snapshot.phase,
     phase: snapshot.phase,
     timeMs: Math.round(snapshot.timeMs),
+    coordinateSystem: "Arena origin at center; +x is camera-right from spawn, +z points back toward the archway/player side.",
     leader: leader
       ? {
           hp: Math.round(leader.currentHp),
           resource: Math.round(leader.currentResource),
           loadout: [...leader.loadoutSpellIds],
+          basicCooldownMs: Math.round(leader.basicCooldownMs),
+          spellCooldowns: Object.fromEntries(
+            leader.loadoutSpellIds.map((spellId) => [spellId, Math.round(leader.spellCooldowns[spellId] ?? 0)]),
+          ),
           position: {
             x: Math.round(leader.position.x * 10) / 10,
             z: Math.round(leader.position.z * 10) / 10,
@@ -67,6 +73,12 @@ const summarizeSnapshot = (snapshot: CombatSnapshot) => {
       downed: unit.isDowned,
       dead: unit.isDead,
       order: unit.order.orderId,
+      orderAnchor: unit.order.anchor
+        ? {
+            x: Math.round(unit.order.anchor.x * 10) / 10,
+            z: Math.round(unit.order.anchor.z * 10) / 10,
+          }
+        : null,
       behavior: unit.behavior.profileId,
     })),
     enemies: livingEnemies.map((unit) => ({
@@ -75,6 +87,8 @@ const summarizeSnapshot = (snapshot: CombatSnapshot) => {
       position: { x: Math.round(unit.position.x * 10) / 10, z: Math.round(unit.position.z * 10) / 10 },
       hp: Math.round(unit.currentHp),
     })),
+    zones: snapshot.zones.length,
+    debugFlags: snapshot.debugFlags,
     rewardsPending: snapshot.rewardChoices.pendingSelection,
     rewardChoices: snapshot.rewardChoices.choices,
     catalogSummary,
@@ -85,6 +99,7 @@ function App() {
   const simulationAccumulatorRef = useRef(0);
   const authorityRef = useRef(createCombatAuthority());
   const authority = authorityRef.current;
+  const audioRef = useRef(createCombatAudioSystem());
   const viewportRef = useRef<HTMLElement | null>(null);
   const [snapshot, setSnapshot] = useState(() => authority.getSnapshot());
   const snapshotRef = useRef(snapshot);
@@ -106,6 +121,7 @@ function App() {
   const [orderTargeting, setOrderTargeting] = useState<OrderTargetingState | null>(null);
   const [editingLoadoutSlot, setEditingLoadoutSlot] = useState(0);
   const [orderScope, setOrderScope] = useState<"all" | "frontline" | "backline" | "support" | "alpha" | "bravo">("all");
+  const orderScopeRef = useRef(orderScope);
   const movementKeysRef = useRef({
     forward: false,
     backward: false,
@@ -132,11 +148,23 @@ function App() {
     preloadPresentationAssets().catch((error) => {
       console.error("Presentation asset preload failed", error);
     });
+    audioRef.current.preload().catch((error) => {
+      console.warn("Audio preload failed", error);
+    });
   }, []);
 
   useEffect(() => {
     snapshotRef.current = snapshot;
   }, [snapshot]);
+
+  useEffect(() => {
+    const leaderUnit = snapshot.units.find((unit) => unit.id === snapshot.leaderId);
+    if (!leaderUnit) {
+      return;
+    }
+
+    audioRef.current.updateListener(leaderUnit.position, cameraOrbitRef.current.yaw);
+  }, [snapshot.leaderId, snapshot.units]);
 
   useEffect(() => {
     if (snapshot.phase === "loadout" || snapshot.phase === "battle") {
@@ -151,6 +179,10 @@ function App() {
   useEffect(() => {
     armedSpellSlotRef.current = armedSpellSlot;
   }, [armedSpellSlot]);
+
+  useEffect(() => {
+    orderScopeRef.current = orderScope;
+  }, [orderScope]);
 
   useEffect(() => {
     setLiveOps((current) => ({
@@ -228,6 +260,38 @@ function App() {
   }, [authority]);
 
   useEffect(() => {
+    if (!snapshot.presentationEvents.length) {
+      return;
+    }
+
+    snapshot.presentationEvents.forEach((event) => {
+      if (event.kind === "basic_attack_hit") {
+        audioRef.current.play({ cue: "basicAttackHit", position: event.position });
+        return;
+      }
+      if (event.kind === "spell_cast") {
+        audioRef.current.play({ cue: "spellCast", position: event.position });
+        return;
+      }
+      if (event.kind === "spell_impact") {
+        audioRef.current.play({ cue: "spellImpact", position: event.position });
+        return;
+      }
+      if (event.kind === "unit_downed") {
+        audioRef.current.play({ cue: "unitDowned", position: event.position });
+        return;
+      }
+      if (event.kind === "revive_complete") {
+        audioRef.current.play({ cue: "revive", position: event.position });
+        return;
+      }
+      if (event.kind === "level_up") {
+        audioRef.current.play({ cue: "levelUp" });
+      }
+    });
+  }, [snapshot.presentationEvents]);
+
+  useEffect(() => {
     const renderGameToText = () =>
       JSON.stringify({
         featureFlags,
@@ -236,20 +300,64 @@ function App() {
       });
 
     const advanceTime = (ms: number) => authority.advanceTime(ms);
+    const combatDebug = {
+      issueAreaOrder: (orderId: GroundTargetOrderId, point: { x: number; y: number; z: number }) => {
+        const liveSnapshot = snapshotRef.current;
+        const scope = orderScopeRef.current;
+        if (scope === "all") {
+          authority.issueScopedOrder({ mode: "all" }, orderId, point, liveSnapshot.selectedTargetId);
+          return;
+        }
+        if (scope === "alpha" || scope === "bravo") {
+          authority.issueScopedOrder({ mode: "custom", group: scope }, orderId, point, liveSnapshot.selectedTargetId);
+          return;
+        }
+        authority.issueScopedOrder({ mode: "group", group: scope }, orderId, point, liveSnapshot.selectedTargetId);
+      },
+      castGroundSpell: (slotIndex: number, point: { x: number; y: number; z: number }) => {
+        const liveSnapshot = snapshotRef.current;
+        const leaderUnit = liveSnapshot.units.find((entry) => entry.id === liveSnapshot.leaderId);
+        authority.commandLeaderSpell(slotIndex, {
+          targetPoint: point,
+          direction: leaderUnit
+            ? normalize2D(subVec3(point, leaderUnit.position))
+            : yawToDirection(cameraOrbitRef.current.yaw),
+        });
+      },
+      reviveNearest: () => {
+        const liveSnapshot = snapshotRef.current;
+        const reviveTarget = liveSnapshot.units.find(
+          (unit) =>
+            unit.faction === "leader_party" &&
+            unit.id !== liveSnapshot.leaderId &&
+            unit.isDowned &&
+            !unit.isDead,
+        );
+        if (reviveTarget) {
+          authority.commandRevive(reviveTarget.id);
+        }
+      },
+      chooseReward: (rewardId: RewardId) => {
+        authority.chooseReward(rewardId);
+      },
+    };
 
     Object.assign(window, {
       render_game_to_text: renderGameToText,
       advanceTime,
+      combat_debug: combatDebug,
     });
 
     return () => {
       delete (window as Window & { render_game_to_text?: () => string }).render_game_to_text;
       delete (window as Window & { advanceTime?: (ms: number) => void }).advanceTime;
+      delete (window as Window & { combat_debug?: unknown }).combat_debug;
     };
   }, [authority]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      void audioRef.current.unlock();
       const movementDirection = resolveMovementDirection(event);
       if (
         movementDirection ||
@@ -389,6 +497,25 @@ function App() {
     };
   }
 
+  const aiStateSummary = deferredSnapshot.units
+    .filter((unit) => unit.id !== deferredSnapshot.leaderId && !unit.isDead)
+    .slice(0, 4)
+    .map((unit) => ({
+      id: unit.id,
+      name: unit.name,
+      stateLabel: unit.aiState.stateLabel,
+    }));
+  const leaderCooldownSummary = leader
+    ? [
+        { id: "basic", label: "Basic", seconds: leader.basicCooldownMs / 1000 },
+        ...snapshot.activeLoadoutIds.map((spellId, index) => ({
+          id: spellId,
+          label: `${index + 1}`,
+          seconds: (leader.spellCooldowns[spellId] ?? 0) / 1000,
+        })),
+      ]
+    : [];
+
   const assignLoadoutSpell = (spellId: SpellId) => {
     const nextLoadout = [...snapshot.activeLoadoutIds];
     nextLoadout[editingLoadoutSlot] = spellId;
@@ -466,8 +593,13 @@ function App() {
   };
 
   const beginOrderTargeting = (orderId: GroundTargetOrderId) => {
+    audioRef.current.play({ cue: "uiConfirm" });
     setArmedSpellSlot(null);
     setOrderTargeting({ orderId });
+  };
+
+  const playUiConfirm = () => {
+    audioRef.current.play({ cue: "uiConfirm" });
   };
 
   return (
@@ -558,6 +690,7 @@ function App() {
                 key={spell.id}
                 className="action-button"
                 onClick={() => {
+                  playUiConfirm();
                   assignLoadoutSpell(spell.id);
                 }}
               >
@@ -574,7 +707,9 @@ function App() {
               <button
                 key={unit.id}
                 className="action-button"
+                data-testid={`recruit-${unit.id}`}
                 onClick={() => {
+                  playUiConfirm();
                   authority.recruitCompanion(unit.id);
                 }}
               >
@@ -604,7 +739,9 @@ function App() {
             <button
               className="action-button"
               id="start-battle"
+              data-testid="start-battle"
               onClick={() => {
+                playUiConfirm();
                 authority.startBattle();
               }}
             >
@@ -612,7 +749,9 @@ function App() {
             </button>
             <button
               className="action-button"
+              data-testid="debug-order-follow"
               onClick={() => {
+                playUiConfirm();
                 issueScopedOrder("follow_me");
               }}
             >
@@ -620,7 +759,9 @@ function App() {
             </button>
             <button
               className="action-button"
+              data-testid="debug-order-weakest"
               onClick={() => {
+                playUiConfirm();
                 issueScopedOrder("focus_weakest");
               }}
             >
@@ -628,6 +769,8 @@ function App() {
             </button>
             <button
               className="action-button"
+              id="debug-place-defend"
+              data-testid="debug-place-defend"
               onClick={() => {
                 beginOrderTargeting("defend_area");
               }}
@@ -636,6 +779,7 @@ function App() {
             </button>
             <button
               className="action-button"
+              id="debug-place-hold"
               onClick={() => {
                 beginOrderTargeting("hold_position");
               }}
@@ -644,6 +788,7 @@ function App() {
             </button>
             <button
               className="action-button"
+              id="debug-place-retreat"
               onClick={() => {
                 beginOrderTargeting("retreat");
               }}
@@ -653,6 +798,7 @@ function App() {
             <button
               className="action-button"
               onClick={() => {
+                playUiConfirm();
                 authority.applyDamage(snapshot.leaderId, 18, selectedTarget?.id ?? null);
               }}
             >
@@ -663,6 +809,7 @@ function App() {
               disabled={!selectedTarget}
               onClick={() => {
                 if (selectedTarget) {
+                  playUiConfirm();
                   authority.applyDamage(selectedTarget.id, 20, snapshot.leaderId);
                 }
               }}
@@ -672,6 +819,7 @@ function App() {
             <button
               className="action-button"
               onClick={() => {
+                playUiConfirm();
                 authority.applyShield(snapshot.leaderId, 24);
               }}
             >
@@ -680,6 +828,7 @@ function App() {
             <button
               className="action-button"
               onClick={() => {
+                playUiConfirm();
                 authority.grantXp(100);
               }}
             >
@@ -688,6 +837,7 @@ function App() {
             <button
               className="action-button"
               onClick={() => {
+                playUiConfirm();
                 authority.resetEncounter();
               }}
             >
@@ -704,7 +854,9 @@ function App() {
                 <button
                   key={rewardId}
                   className="action-button"
+                  data-testid={`reward-${rewardId}`}
                   onClick={() => {
+                    playUiConfirm();
                     authority.chooseReward(rewardId);
                   }}
                 >
@@ -848,6 +1000,7 @@ function App() {
       </aside>
 
       <main
+        id="battlefield"
         ref={viewportRef}
         tabIndex={0}
         className="viewport-shell"
@@ -855,6 +1008,7 @@ function App() {
           event.preventDefault();
         }}
         onMouseDown={(event) => {
+          void audioRef.current.unlock();
           viewportRef.current?.focus();
           if (event.button !== 2) {
             return;
@@ -914,6 +1068,7 @@ function App() {
           armedSpellSlot={armedSpellSlot}
           activeOrderTargeting={orderTargeting?.orderId ?? null}
           onSpellSlotClick={(index) => {
+            playUiConfirm();
             const spellId = snapshot.activeLoadoutIds[index];
             const spell = spellId ? prototypeCatalog.spells[spellId] : null;
             if (!spell) {
@@ -931,6 +1086,7 @@ function App() {
             setArmedSpellSlot(index);
           }}
           onChooseReward={(rewardId) => {
+            playUiConfirm();
             authority.chooseReward(rewardId);
           }}
         />
@@ -954,6 +1110,116 @@ function App() {
             <strong>{liveOps.projectiles + liveOps.floatingTexts}</strong>
           </div>
         </div>
+        {featureFlags.enableDebugTools ? (
+          <div className="debug-overlay hud-card">
+            <div className="liveops-header">
+              <p className="hud-kicker">Debug</p>
+              <strong>{snapshot.phase}</strong>
+            </div>
+            <div className="debug-toggle-grid">
+              <button
+                className={`debug-chip-button${snapshot.debugFlags.godMode ? " is-active" : ""}`}
+                id="debug-toggle-god"
+                onClick={() => {
+                  playUiConfirm();
+                  authority.toggleDebugFlag("godMode");
+                }}
+              >
+                God mode
+              </button>
+              <button
+                className={`debug-chip-button${snapshot.debugFlags.noCooldowns ? " is-active" : ""}`}
+                id="debug-toggle-cooldowns"
+                onClick={() => {
+                  playUiConfirm();
+                  authority.toggleDebugFlag("noCooldowns");
+                }}
+              >
+                No cooldowns
+              </button>
+              <button
+                className={`debug-chip-button${snapshot.debugFlags.showAi ? " is-active" : ""}`}
+                id="debug-toggle-ai"
+                onClick={() => {
+                  playUiConfirm();
+                  authority.toggleDebugFlag("showAi");
+                }}
+              >
+                Show AI
+              </button>
+              <button
+                className="debug-chip-button"
+                id="debug-fast-forward"
+                onClick={() => {
+                  playUiConfirm();
+                  authority.advanceTime(5000);
+                }}
+              >
+                +5s
+              </button>
+            </div>
+            <div className="debug-toggle-grid">
+              <button
+                className="debug-chip-button"
+                id="debug-spawn-enemy"
+                onClick={() => {
+                  playUiConfirm();
+                  authority.spawnDebugEnemy();
+                }}
+              >
+                Spawn enemy
+              </button>
+              <button
+                className="debug-chip-button"
+                id="debug-spawn-companion"
+                onClick={() => {
+                  playUiConfirm();
+                  authority.spawnDebugCompanion();
+                }}
+              >
+                Spawn ally
+              </button>
+              <button
+                className="debug-chip-button"
+                id="debug-down-ally"
+                onClick={() => {
+                  playUiConfirm();
+                  authority.downDebugCompanion();
+                }}
+              >
+                Down ally
+              </button>
+              <button
+                className="debug-chip-button"
+                id="debug-clear-enemies"
+                onClick={() => {
+                  playUiConfirm();
+                  authority.clearDebugEnemies();
+                }}
+              >
+                Clear wave
+              </button>
+            </div>
+            <div className="debug-readout">
+              <span>Cooldowns</span>
+              <strong>
+                {leaderCooldownSummary.length > 0
+                  ? leaderCooldownSummary
+                      .map((entry) => `${entry.label} ${entry.seconds > 0.05 ? `${entry.seconds.toFixed(1)}s` : "ready"}`)
+                      .join(" · ")
+                  : "No leader"}
+              </strong>
+              <span>AI</span>
+              <strong>
+                {!snapshot.debugFlags.showAi
+                  ? "Hidden"
+                  : aiStateSummary.length > 0
+                  ? aiStateSummary.map((entry) => `${entry.name}: ${entry.stateLabel}`).join(" | ")
+                  : "No active AI units"}
+              </strong>
+            </div>
+          </div>
+        ) : null}
       </main>
     </div>
   );

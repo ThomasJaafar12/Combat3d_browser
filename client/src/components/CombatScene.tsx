@@ -79,10 +79,15 @@ const loadTexture = (url: string) => {
   return promise;
 };
 
-const useWorldTexture = (url: string) => {
+const useWorldTexture = (url: string | null) => {
   const [texture, setTexture] = useState<THREE.Texture | null>(null);
 
   useEffect(() => {
+    if (!url) {
+      setTexture(null);
+      return;
+    }
+
     let cancelled = false;
     loadTexture(url)
       .then((nextTexture) => {
@@ -348,7 +353,13 @@ const MemoHealthBar = memo(
     previous.unit.faction === next.unit.faction,
 );
 
-function UnitLabel({ unit }: { unit: CombatSnapshot["units"][number] }) {
+function UnitLabel({
+  unit,
+  showAiState,
+}: {
+  unit: CombatSnapshot["units"][number];
+  showAiState: boolean;
+}) {
   const statusLine = unit.isDead ? "Defeated" : unit.isDowned ? "Downed" : prototypeCatalog.units[unit.definitionId].group;
 
   return (
@@ -375,6 +386,19 @@ function UnitLabel({ unit }: { unit: CombatSnapshot["units"][number] }) {
       >
         {statusLine}
       </Text>
+      {showAiState && unit.controller === "ai" ? (
+        <Text
+          color="#6f553f"
+          fontSize={0.13}
+          outlineColor="#f5ecde"
+          outlineWidth={0.014}
+          anchorX="center"
+          anchorY="middle"
+          position={[0, 2.42, 0]}
+        >
+          {unit.aiState.stateLabel}
+        </Text>
+      ) : null}
     </>
   );
 }
@@ -385,16 +409,45 @@ const MemoUnitLabel = memo(
     previous.unit.name === next.unit.name &&
     previous.unit.definitionId === next.unit.definitionId &&
     previous.unit.isDead === next.unit.isDead &&
-    previous.unit.isDowned === next.unit.isDowned,
+    previous.unit.isDowned === next.unit.isDowned &&
+    previous.showAiState === next.showAiState &&
+    previous.unit.aiState.stateLabel === next.unit.aiState.stateLabel,
 );
+
+function StatusIndicators({ unit }: { unit: CombatSnapshot["units"][number] }) {
+  const visibleStatuses = unit.statuses.slice(0, 3);
+
+  return (
+    <>
+      {visibleStatuses.map((status, index) => {
+        const statusDefinition = prototypeCatalog.statuses[status.id];
+        if (!statusDefinition.asset.vfxUrl) {
+          return null;
+        }
+
+        return (
+          <BillboardIndicator
+            key={status.id}
+            textureUrl={statusDefinition.asset.vfxUrl}
+            point={{ x: -0.42 + index * 0.42, y: 3.22, z: 0 }}
+            size={0.32}
+            tint={status.id === "shielded" ? "#dff3ff" : status.id === "marked" ? "#ffd9b5" : "#fff6d2"}
+          />
+        );
+      })}
+    </>
+  );
+}
 
 function UnitModel({
   unit,
   isSelected,
+  showAiState,
   onClick,
 }: {
   unit: CombatSnapshot["units"][number];
   isSelected: boolean;
+  showAiState: boolean;
   onClick: (unitId: string) => void;
 }) {
   const definition = prototypeCatalog.units[unit.definitionId];
@@ -512,7 +565,8 @@ function UnitModel({
         {model ? <primitive object={model.scene} /> : null}
       </group>
       <MemoHealthBar unit={unit} />
-      <MemoUnitLabel unit={unit} />
+      <MemoUnitLabel unit={unit} showAiState={showAiState} />
+      <StatusIndicators unit={unit} />
       {isSelected ? (
         <>
           <GroundIndicator textureUrl={selectedMarkerUrl} point={{ x: 0, y: 0, z: 0 }} size={2.1} />
@@ -544,7 +598,10 @@ const MemoUnitModel = memo(
     previous.unit.basicCooldownMs === next.unit.basicCooldownMs &&
     previous.unit.isDead === next.unit.isDead &&
     previous.unit.isDowned === next.unit.isDowned &&
-    previous.unit.castState?.spellId === next.unit.castState?.spellId,
+    previous.unit.castState?.spellId === next.unit.castState?.spellId &&
+    previous.showAiState === next.showAiState &&
+    previous.unit.aiState.stateLabel === next.unit.aiState.stateLabel &&
+    previous.unit.statuses.map((status) => status.id).join(",") === next.unit.statuses.map((status) => status.id).join(","),
 );
 
 function ArenaGround({ snapshot }: { snapshot: CombatSnapshot }) {
@@ -675,30 +732,72 @@ function Projectiles({ snapshot }: { snapshot: CombatSnapshot }) {
   );
 }
 
+function FloatingFeedbackEntry({ entry }: { entry: CombatSnapshot["floatingTexts"][number] }) {
+  const textureUrl =
+    entry.kind === "damage"
+      ? assetUrls.vfx.hitSlash
+      : entry.kind === "heal"
+        ? assetUrls.vfx.buff
+        : entry.kind === "status"
+          ? entry.text === "Revived"
+            ? assetUrls.vfx.revive
+            : assetUrls.vfx.warning
+          : entry.kind === "reward"
+            ? assetUrls.ui.star
+            : null;
+  const opacity = Math.max(0.18, Math.min(1, entry.remainingMs / (entry.kind === "reward" ? 2200 : 1200)));
+  const size = entry.kind === "reward" ? 0.72 : 0.54;
+  const texture = useWorldTexture(textureUrl);
+
+  return (
+    <>
+      {texture ? (
+        <sprite scale={[size, size, 1]} position={[entry.position.x, entry.position.y + 0.24, entry.position.z]}>
+          <spriteMaterial
+            map={texture}
+            transparent
+            depthWrite={false}
+            opacity={opacity}
+            color={
+              entry.kind === "damage"
+                ? "#f7c4b9"
+                : entry.kind === "heal"
+                  ? "#d6ffd3"
+                  : entry.kind === "reward"
+                    ? "#fff0b3"
+                    : "#d7ebff"
+            }
+          />
+        </sprite>
+      ) : null}
+      <Text
+        color={
+          entry.kind === "damage"
+            ? "#9a2d2a"
+            : entry.kind === "heal"
+              ? "#2f7a38"
+              : entry.kind === "reward"
+                ? "#8f6514"
+                : "#22465a"
+        }
+        outlineColor="#fff4e8"
+        outlineWidth={0.03}
+        fontSize={0.22}
+        anchorX="center"
+        anchorY="middle"
+        position={[entry.position.x, entry.position.y, entry.position.z]}
+      >
+        {entry.text}
+      </Text>
+    </>
+  );
+}
+
 function FloatingTexts({ snapshot }: { snapshot: CombatSnapshot }) {
   return (
     <>
       {snapshot.floatingTexts.map((entry) => (
-        <Text
-          key={entry.id}
-          color={
-            entry.kind === "damage"
-              ? "#9a2d2a"
-              : entry.kind === "heal"
-                ? "#2f7a38"
-                : entry.kind === "reward"
-                  ? "#8f6514"
-                  : "#22465a"
-          }
-          outlineColor="#fff4e8"
-          outlineWidth={0.03}
-          fontSize={0.22}
-          anchorX="center"
-          anchorY="middle"
-          position={[entry.position.x, entry.position.y, entry.position.z]}
-        >
-          {entry.text}
-        </Text>
+        <FloatingFeedbackEntry key={entry.id} entry={entry} />
       ))}
     </>
   );
@@ -781,6 +880,7 @@ export function CombatScene({
           key={unit.id}
           unit={unit}
           isSelected={snapshot.selectedTargetId === unit.id}
+          showAiState={snapshot.debugFlags.showAi}
           onClick={onUnitClick}
         />
       ))}

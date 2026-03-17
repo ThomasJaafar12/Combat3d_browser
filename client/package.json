@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit -p tsconfig.app.json && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "smoke": "node --experimental-strip-types ../tests/combat.smoke.ts"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.4",

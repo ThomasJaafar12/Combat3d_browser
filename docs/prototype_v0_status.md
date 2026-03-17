@@ -22,12 +22,17 @@
 - Third-person controls and orientation are now corrected: movement is camera-relative, `W/A/S/D` map to forward/left/back/right, the character faces the direction of travel/action, and zoom is disabled for now.
 - Runtime stepping and diagnostics are now optimized for smoother local play: the client drives the authority with a fixed-step simulation loop, the authority throttles snapshot publication, and the viewport shows a live-ops FPS/frame-time/render-cost panel.
 - Movement-time render cost is reduced through lighter canvas settings, scene memoization, and opaque HUD surfaces instead of blur-heavy compositing.
+- Curated arena GLTFs used by the prototype were simplified to remove broken external material texture references, and a clean dev-server validation no longer emits the previous environment texture warnings.
+- A presentation-layer audio bridge now lives in `client/src/game/audio/audioSystem.ts`; it preloads cues, follows the listener/camera, and plays fail-soft UI/combat audio without altering combat rules.
+- The authority now exposes transient presentation events for combat/UI feedback, allowing audio and lightweight visual polish to subscribe without coupling rendering back into the simulation.
+- Automated smoke coverage now includes companion recruiting, battle start, placed area orders, ground spell casting, revive flow, wave clear, and reward selection through `tests/combat.smoke.ts`.
+- The debug/live-ops pass now includes runtime toggles for god mode, cooldown bypass, AI labels, fast-forward, debug spawning, forced downed allies, and wave clearing.
+- Combat feedback polish now includes status icons, lightweight floating-hit/reward sprites, and in-scene AI state labels behind the existing debug flag.
 - Required documentation initialized.
 
 ## Incomplete systems
-- Audio hooks are still not wired to combat/UI events.
-- Automated smoke coverage still stops at battle start instead of running the recruit/order/cast/revive/clear loop.
-- Debug/stability tooling and the remaining combat-feedback polish are still pending.
+- Third-person camera readability still needs another pass around close-quarters obstacle occlusion and tighter framing near large props.
+- The build currently ships as one large client chunk; code-splitting has not been tackled yet.
 
 ## Temporary shortcuts
 - The repository branch did not contain the referenced starter runtime, only curated assets.
@@ -42,7 +47,7 @@
 - Start the Vite dev server with `npm.cmd run dev`.
 - Use the left-side shell to recruit companions, edit the 3-slot loadout, start the battle, change order scope, and adjust companion behavior.
 - In the scene, use `WASD` or arrow keys to move, right-drag to orbit the camera, left-click enemies to select/basic-attack, press `1-3` to arm spells, press `Q` / `H` / `T` to place defend / hold / retreat orders, and press `R` to revive a downed companion in range.
-- Run the Playwright client against a Vite dev instance such as `http://127.0.0.1:4173` with `#start-battle` as the click selector for the current automated smoke path.
+- Run `npm.cmd run smoke -- http://127.0.0.1:5173` in `client/` for the end-to-end smoke path, or run the Playwright client against a Vite dev instance such as `http://127.0.0.1:5173` with `#start-battle` as the click selector for screenshot/state validation.
 
 ## Setup / run
 - `cd client`
@@ -51,15 +56,14 @@
 - Open `http://127.0.0.1:5173`
 
 ## Next recommended steps
-- Remove the remaining GLTF `../materials/` warning so startup/movement-time hitches are narrowed to real scene cost instead of failed asset fetches.
-- Add the audio system and bridge combat/UI events into it without pushing presentation logic into the authority.
-- Expand automated smoke coverage to recruit companions and exercise placed orders, casting, revive flow, and wave clear.
-- Add the remaining compact debug tooling and lightweight combat-feedback polish now that the live-ops overlay is in place.
+- Improve third-person camera occlusion handling so large props like the archway do not dominate the frame during close movement.
+- Split the heaviest client bundle paths now that the runtime systems are stable enough to profile loading cost separately from simulation cost.
+- Expand the smoke path further with direct assertions on audio/debug toggle side effects and companion autonomy during a full live wave.
+- Add richer but still lightweight hit/VFX responses only after the camera visibility pass is done.
 
 ## Known issues
-- One curated environment prop (`env_prop_fence_metal_01.gltf`) had broken texture references in the source curation; the file was patched locally, but an already-running dev server may still cache the old warning until it is restarted.
-- Movement-time FPS drops are improved, but any remaining hitching is now more likely tied to asset-loading/startup issues than to normal scene geometry cost.
-- The current automated smoke path starts the battle and advances time, but it does not yet automate companion recruiting or placed-order changes through the side panel.
+- Close-range camera framing can still be partially blocked by large arena props during certain movements.
+- The production build still triggers Vite's large-chunk warning and should eventually be split for better load behavior.
 
 ## Commit notes
 - Commit 1: audited the repo, confirmed the assets-only branch state, mapped the curated asset set, scaffolded the client runtime, added feature flags, and initialized the required docs.
@@ -68,3 +72,4 @@
 - Commit 4+: expanded the prototype into a playable scene with player movement, targeting, spell arming, scoped orders, behavior editing, and replayable reward application.
 - Current slice after Commit 4+: added the presentation asset loader, data-driven environment module, curated scene assets, area-order targeting mode, dedicated viewport HUD, and a battlefield-aware camera pass.
 - Current runtime slice: corrected third-person controls/orientation, fixed-step local simulation, live-ops diagnostics, and the first round of CPU/GPU/compositing optimizations.
+- Current polish slice: cleaned active arena asset warnings, added a presentation-only audio/event bridge, expanded smoke coverage, added compact debug tools, and improved lightweight status/hit feedback.
