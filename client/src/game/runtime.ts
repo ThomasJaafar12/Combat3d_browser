@@ -10,6 +10,7 @@ import type {
   Vec3,
   WeaponId,
 } from "@/game/defs";
+import type { EquipmentState } from "@/game/equipment/schema";
 
 export type CombatPhase = "loadout" | "battle" | "victory" | "reward" | "defeat";
 export type DebugFlag = "godMode" | "noCooldowns" | "showAi";
@@ -68,9 +69,11 @@ export interface RuntimeUnit {
   position: Vec3;
   facingYaw: number;
   velocity: Vec3;
+  moveIntent: Vec3;
   currentHp: number;
   currentResource: number;
   weaponId: WeaponId;
+  equipmentState: EquipmentState;
   loadoutSpellIds: SpellId[];
   spellbookIds: SpellId[];
   spellCooldowns: Partial<Record<SpellId, number>>;
@@ -167,12 +170,27 @@ export interface ArenaObstacle {
   blocksMovement: boolean;
 }
 
+export interface ArenaSupportSurface {
+  id: string;
+  kind: "flat" | "ramp";
+  position: Vec3;
+  rotationY: number;
+  size: {
+    x: number;
+    z: number;
+  };
+  supportY: number;
+  endSupportY?: number;
+  rampAxis?: "x" | "z";
+}
+
 export interface ArenaDefinition {
   bounds: {
     width: number;
     depth: number;
   };
   groundModelUrl: string;
+  supportSurfaces: ArenaSupportSurface[];
   playerStart: Vec3;
   recruitStaging: Vec3[];
   companionSlots: Vec3[];

@@ -11,7 +11,9 @@ import type {
   UnitArchetypeId,
   Vec3,
 } from "@/game/defs";
+import { equipmentSystem } from "@/game/equipment/system";
 import { arenaDefinition } from "@/game/map";
+import { resolveArenaPosition } from "@/game/environment/collision";
 import {
   addVec3,
   clamp,
@@ -123,6 +125,13 @@ export class CombatAuthority {
         ...unit,
         position: roundVec3(unit.position),
         velocity: roundVec3(unit.velocity),
+        moveIntent: roundVec3(unit.moveIntent),
+        equipmentState: {
+          equipState: unit.equipmentState.equipState,
+          activeSlots: { ...unit.equipmentState.activeSlots },
+          storageSlots: { ...unit.equipmentState.storageSlots },
+          pendingTransfer: unit.equipmentState.pendingTransfer ? { ...unit.equipmentState.pendingTransfer } : null,
+        },
         statuses: unit.statuses.map((status) => ({ ...status })),
         spellCooldowns: { ...unit.spellCooldowns },
         loadoutSpellIds: [...unit.loadoutSpellIds],
@@ -253,6 +262,18 @@ export class CombatAuthority {
 
     leader.loadoutSpellIds = nextLoadout;
     this.activeLoadoutIds = [...nextLoadout];
+    this.emit();
+    return true;
+  }
+
+  toggleLeaderEquipment() {
+    const leader = this.unitsById.get(this.leaderId);
+    if (!leader) {
+      return false;
+    }
+
+    const definition = prototypeCatalog.units[leader.definitionId];
+    leader.equipmentState = equipmentSystem.toggleDefaultLoadout(leader.equipmentState, definition.equipmentLoadout, this.timeMs);
     this.emit();
     return true;
   }
@@ -766,13 +787,15 @@ export class CombatAuthority {
       return;
     }
 
-    leader.facingYaw = this.playerAimYaw;
+    leader.moveIntent = { ...this.playerMoveIntent, y: 0 };
     const hasMoveIntent = length2D(this.playerMoveIntent) > 0.05;
     if (hasMoveIntent) {
+      leader.facingYaw = this.playerAimYaw;
       const worldMove = this.rotateInputByYaw(this.playerMoveIntent, this.playerAimYaw);
-      this.moveUnitAlongDirection(leader, worldMove, deltaMs);
+      this.moveUnitAlongDirection(leader, worldMove, deltaMs, 1, false);
     } else {
       leader.velocity = vec3();
+      leader.moveIntent = vec3();
     }
 
     if (this.activeReviveTargetId) {
@@ -1369,7 +1392,7 @@ export class CombatAuthority {
       });
   }
 
-  private moveUnitAlongDirection(unit: RuntimeUnit, direction: Vec3, deltaMs: number, speedScale = 1) {
+  private moveUnitAlongDirection(unit: RuntimeUnit, direction: Vec3, deltaMs: number, speedScale = 1, updateFacing = true) {
     const normalized = normalize2D(direction);
     const slowMultiplier = unit.statuses.some((status) => status.id === "slowed") ? 0.65 : 1;
     const speed = this.getEffectiveStats(unit).moveSpeed * speedScale * slowMultiplier;
@@ -1377,7 +1400,7 @@ export class CombatAuthority {
     const nextPosition = addVec3(unit.position, movement);
     unit.position = this.resolvePosition(unit, nextPosition);
     unit.velocity = movement;
-    if (length2D(normalized) > 0.01) {
+    if (updateFacing && length2D(normalized) > 0.01) {
       unit.facingYaw = directionToYaw(normalized);
     }
   }
@@ -1395,40 +1418,7 @@ export class CombatAuthority {
   }
 
   private resolvePosition(unit: RuntimeUnit, rawPosition: Vec3) {
-    const radius = unit.spawnRadius;
-    const halfWidth = arenaDefinition.bounds.width / 2 - radius;
-    const halfDepth = arenaDefinition.bounds.depth / 2 - radius;
-    let position = {
-      x: clamp(rawPosition.x, -halfWidth, halfWidth),
-      y: 0,
-      z: clamp(rawPosition.z, -halfDepth, halfDepth),
-    };
-
-    arenaDefinition.obstacles
-      .filter((obstacle) => obstacle.blocksMovement)
-      .forEach((obstacle) => {
-        const halfX = obstacle.size.x / 2 + radius;
-        const halfZ = obstacle.size.z / 2 + radius;
-        const deltaX = position.x - obstacle.position.x;
-        const deltaZ = position.z - obstacle.position.z;
-        if (Math.abs(deltaX) < halfX && Math.abs(deltaZ) < halfZ) {
-          const pushX = halfX - Math.abs(deltaX);
-          const pushZ = halfZ - Math.abs(deltaZ);
-          if (pushX < pushZ) {
-            position = {
-              ...position,
-              x: obstacle.position.x + Math.sign(deltaX || 1) * halfX,
-            };
-          } else {
-            position = {
-              ...position,
-              z: obstacle.position.z + Math.sign(deltaZ || 1) * halfZ,
-            };
-          }
-        }
-      });
-
-    return position;
+    return resolveArenaPosition(arenaDefinition, rawPosition, unit.spawnRadius);
   }
 
   private rotateInputByYaw(moveInput: Vec3, yaw: number) {
@@ -1549,9 +1539,11 @@ export class CombatAuthority {
       position: { ...position },
       facingYaw: definition.faction === "enemy" ? Math.PI : 0,
       velocity: vec3(),
+      moveIntent: vec3(),
       currentHp: definition.stats.maxHp,
       currentResource: definition.stats.maxResource,
       weaponId: definition.weaponId,
+      equipmentState: equipmentSystem.createStateFromLoadout(definition.equipmentLoadout),
       loadoutSpellIds: [...definition.defaultLoadoutIds],
       spellbookIds: [...definition.spellbookIds],
       spellCooldowns: {},

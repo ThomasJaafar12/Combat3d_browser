@@ -30,6 +30,10 @@ body {
   min-height: 0;
 }
 
+.app-shell-setup-collapsed {
+  grid-template-columns: 1fr;
+}
+
 .boot-panel {
   height: 100vh;
   overflow-y: auto;
@@ -39,6 +43,37 @@ body {
   border-right: 1px solid rgba(61, 42, 25, 0.14);
   box-shadow: 0 0 40px rgba(46, 28, 13, 0.08);
   contain: layout paint style;
+}
+
+.boot-panel-hidden {
+  display: none;
+}
+
+.boot-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.setup-panel-close,
+.setup-panel-toggle {
+  border: 1px solid rgba(87, 58, 31, 0.14);
+  background: rgba(255, 252, 245, 0.96);
+  color: #493524;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font: inherit;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(70, 43, 21, 0.08);
+}
+
+.setup-panel-toggle {
+  position: absolute;
+  left: 18px;
+  top: 18px;
+  z-index: 6;
 }
 
 .boot-panel h1,
@@ -216,7 +251,7 @@ body {
 
 .combat-hud-left {
   left: 18px;
-  top: 198px;
+  top: 258px;
   width: min(320px, calc(100% - 36px));
 }
 
@@ -236,7 +271,7 @@ body {
 
 .liveops-panel {
   position: absolute;
-  top: 18px;
+  top: 164px;
   right: 18px;
   z-index: 5;
   width: min(220px, calc(100% - 36px));
@@ -285,10 +320,10 @@ body {
 
 .debug-overlay {
   position: absolute;
-  top: 194px;
+  top: 304px;
   right: 18px;
   z-index: 5;
-  width: min(300px, calc(100% - 36px));
+  width: min(320px, calc(100% - 36px));
 }
 
 .debug-toggle-grid {
@@ -325,6 +360,530 @@ body {
 
 .debug-readout strong {
   font-weight: 600;
+}
+
+.attachment-debug-panel {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(83, 58, 33, 0.14);
+}
+
+.attachment-unit-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.attachment-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.attachment-editor-viewport-shell {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.attachment-open-editor-button {
+  margin-top: 10px;
+}
+
+.attachment-editor-mode {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 14px;
+  padding: 14px;
+  background:
+    radial-gradient(circle at top left, rgba(251, 191, 36, 0.14), transparent 26%),
+    linear-gradient(180deg, #ead8ff 0%, #dcd4ff 100%);
+  color: #0f172a;
+  font-family: "Aptos", "Segoe UI", "Trebuchet MS", sans-serif;
+}
+
+.attachment-editor-mode .hud-card {
+  background: #ffffff;
+  border: 2px solid #0f172a;
+  border-radius: 12px;
+  box-shadow: 6px 6px 0 #0f172a;
+  color: #0f172a;
+}
+
+.attachment-editor-mode .hud-kicker,
+.attachment-editor-mode .attachment-editor-toolbar-group span,
+.attachment-editor-mode .attachment-editor-select span,
+.attachment-editor-mode .attachment-editor-status span,
+.attachment-editor-mode .attachment-editor-grid label,
+.attachment-editor-mode .attachment-export-block {
+  color: #475569;
+  font-family: "Consolas", "JetBrains Mono", "Courier New", monospace;
+  letter-spacing: 0.04em;
+}
+
+.attachment-editor-mode-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: start;
+  padding: 0.85rem 1.1rem;
+}
+
+.attachment-editor-mode-header h2,
+.attachment-editor-mode-header p {
+  margin: 0;
+}
+
+.attachment-editor-mode-header h2 {
+  font-size: 1.38rem;
+  letter-spacing: -0.03em;
+}
+
+.attachment-editor-mode-header .section-note {
+  margin-top: 0.2rem;
+  max-width: 820px;
+  color: #475569;
+  font-size: 0.88rem;
+}
+
+.attachment-editor-mode-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.attachment-editor-mode-grid {
+  display: grid;
+  grid-template-columns: minmax(340px, 380px) minmax(0, 1fr);
+  gap: 14px;
+  min-height: 0;
+}
+
+.attachment-editor-mode-sidebar {
+  display: grid;
+  align-content: start;
+  gap: 0;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.attachment-editor-mode-sidebar > section {
+  display: grid;
+  gap: 10px;
+  padding: 0.95rem 1rem;
+  border-bottom: 2px solid #0f172a;
+}
+
+.attachment-editor-mode-sidebar > section:last-child {
+  border-bottom: none;
+}
+
+.attachment-editor-mode-sidebar .liveops-header {
+  margin: 0;
+  align-items: start;
+}
+
+.attachment-editor-mode-sidebar .liveops-header strong {
+  font-family: "Consolas", "JetBrains Mono", "Courier New", monospace;
+  font-size: 0.85rem;
+}
+
+.attachment-editor-mode-section {
+  display: grid;
+  gap: 10px;
+}
+
+.attachment-editor-mode-stage {
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+}
+
+.attachment-editor-mode-stage .attachment-editor-viewport-shell {
+  height: 100%;
+  margin-top: 0;
+  gap: 0;
+}
+
+.attachment-editor-mode-stage .attachment-editor-canvas {
+  min-height: 520px;
+  height: 100%;
+  margin: 0 0.9rem 0.7rem;
+}
+
+.attachment-editor-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: end;
+  padding: 0.6rem 0.9rem;
+  background: #f8fafc;
+  border-bottom: 2px solid #0f172a;
+}
+
+.attachment-editor-toolbar--compact {
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.attachment-editor-toolbar-group {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  color: #475569;
+  font-size: 0.68rem;
+}
+
+.attachment-editor-toolbar-group strong {
+  font-size: 0.88rem;
+  color: #0f172a;
+}
+
+.attachment-editor-toolbar-group--stats {
+  margin-left: auto;
+  text-align: right;
+}
+
+.attachment-editor-toolbar-group--stats small {
+  color: #475569;
+  font-size: 0.66rem;
+  font-family: "Consolas", "JetBrains Mono", "Courier New", monospace;
+}
+
+.attachment-editor-select {
+  display: grid;
+  gap: 2px;
+  color: #475569;
+  font-size: 0.68rem;
+  min-width: 102px;
+}
+
+.attachment-editor-select--compact {
+  min-width: 78px;
+}
+
+.attachment-editor-select--with-icon {
+  min-width: 120px;
+}
+
+.attachment-editor-select select {
+  width: 100%;
+  min-height: 34px;
+  padding: 0.35rem 0.6rem;
+  border: 2px solid #0f172a;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #0f172a;
+  font: 700 0.74rem/1.1 "Consolas", "JetBrains Mono", "Courier New", monospace;
+  box-shadow: 3px 3px 0 #0f172a;
+}
+
+.attachment-editor-select-shell {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 34px;
+  padding: 0 0.42rem 0 0.32rem;
+  border: 2px solid #0f172a;
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  box-shadow: 3px 3px 0 #0f172a;
+}
+
+.attachment-editor-select-shell select {
+  min-height: 30px;
+  padding: 0.2rem 0.35rem 0.2rem 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.attachment-editor-chip-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  width: 100%;
+}
+
+.attachment-editor-chip-row--transport {
+  grid-template-columns: repeat(3, minmax(0, max-content));
+  width: auto;
+}
+
+.attachment-editor-chip-row--view {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.attachment-editor-chip-row--view-overlay {
+  width: auto;
+  grid-template-columns: repeat(5, minmax(52px, max-content));
+  gap: 0;
+  border: 2px solid #0f172a;
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 4px 4px 0 rgba(15, 23, 42, 0.26);
+}
+
+.attachment-editor-chip-row--overlay-wide {
+  width: auto;
+  grid-template-columns: repeat(4, minmax(74px, max-content));
+  gap: 0;
+  border: 2px solid #0f172a;
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 4px 4px 0 rgba(15, 23, 42, 0.26);
+}
+
+.attachment-editor-chip-row--overlay-wide .debug-chip-button {
+  min-height: 30px;
+  padding: 0.25rem 0.9rem;
+  border-radius: 0;
+  box-shadow: none;
+  border-width: 0 2px 0 0;
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.attachment-editor-chip-row--overlay-wide .debug-chip-button:last-child {
+  border-right-width: 0;
+}
+
+.attachment-editor-chip-row--overlay-wide .debug-chip-button.is-active {
+  box-shadow: none;
+}
+
+.attachment-editor-chip-row--view-overlay .debug-chip-button {
+  min-height: 30px;
+  padding: 0.25rem 0.8rem;
+  border-radius: 0;
+  box-shadow: none;
+  border-width: 0 2px 0 0;
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.attachment-editor-chip-row--view-overlay .debug-chip-button:last-child {
+  border-right-width: 0;
+}
+
+.attachment-editor-chip-row--view-overlay .debug-chip-button.is-active {
+  box-shadow: none;
+}
+
+.attachment-toolbar-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.48rem;
+  min-width: 110px;
+  white-space: nowrap;
+}
+
+.attachment-toolbar-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0) 55%),
+    linear-gradient(180deg, rgba(251, 191, 36, 0.2), rgba(148, 163, 184, 0.14));
+  color: currentColor;
+  flex: 0 0 auto;
+}
+
+.attachment-toolbar-icon svg {
+  width: 1rem;
+  height: 1rem;
+  overflow: visible;
+}
+
+.attachment-editor-timeline {
+  display: grid;
+  gap: 4px;
+  padding: 0.35rem 0.9rem 0.45rem;
+  background: #ffffff;
+  border-bottom: 2px solid #0f172a;
+}
+
+.attachment-editor-status {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  color: #475569;
+  font-size: 0.7rem;
+}
+
+.attachment-editor-status strong {
+  font-weight: 600;
+  color: #0f172a;
+  font-family: "Consolas", "JetBrains Mono", "Courier New", monospace;
+}
+
+.attachment-editor-status--footer {
+  margin: 0 0.9rem 0.7rem;
+  padding: 0.5rem 0.75rem;
+  border: 2px solid #0f172a;
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  box-shadow: 3px 3px 0 rgba(15, 23, 42, 0.18);
+}
+
+.attachment-editor-range {
+  width: 100%;
+  accent-color: #fbbf24;
+}
+
+.attachment-editor-canvas {
+  position: relative;
+  min-height: 280px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 2px solid #0f172a;
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.72), transparent 28%),
+    radial-gradient(circle at top right, rgba(251, 191, 36, 0.1), transparent 26%),
+    linear-gradient(180deg, #d9e3ff 0%, #d5def9 48%, #ced8f4 100%);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.36);
+}
+
+.attachment-editor-view-overlay {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.attachment-editor-view-overlay .attachment-editor-chip-row--view-overlay {
+  pointer-events: auto;
+}
+
+.attachment-editor-view-overlay--left {
+  left: 14px;
+  right: auto;
+}
+
+.attachment-editor-view-overlay--left .attachment-editor-chip-row--overlay-wide {
+  pointer-events: auto;
+}
+
+.attachment-editor-loading {
+  display: grid;
+  place-items: center;
+  min-height: 280px;
+  color: #475569;
+  font-size: 0.82rem;
+  font-family: "Consolas", "JetBrains Mono", "Courier New", monospace;
+}
+
+.attachment-editor-grid label {
+  display: grid;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: #475569;
+}
+
+.attachment-editor-grid input {
+  width: 100%;
+  min-height: 42px;
+  padding: 0.55rem 0.75rem;
+  border: 2px solid #0f172a;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #0f172a;
+  font: 700 0.84rem/1.1 "Consolas", "JetBrains Mono", "Courier New", monospace;
+  box-shadow: inset 2px 2px 0 rgba(15, 23, 42, 0.05);
+}
+
+.attachment-editor-grid input:focus,
+.attachment-export-block textarea:focus {
+  outline: none;
+  background: #fffbeb;
+  border-color: #fbbf24;
+}
+
+.attachment-editor-actions {
+  display: grid;
+  gap: 8px;
+  align-content: end;
+}
+
+.attachment-editor-actions span {
+  font-family: "Consolas", "JetBrains Mono", "Courier New", monospace;
+  font-size: 0.76rem;
+  color: #475569;
+}
+
+.attachment-editor-actions small {
+  color: #475569;
+  font-size: 0.72rem;
+}
+
+.attachment-export-block {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+  color: #475569;
+  font-size: 0.76rem;
+}
+
+.attachment-export-block textarea {
+  min-height: 122px;
+  width: 100%;
+  resize: vertical;
+  padding: 0.9rem 1rem;
+  border: 2px solid #0f172a;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #0f172a;
+  font: 700 0.72rem/1.5 "Consolas", "JetBrains Mono", "Courier New", monospace;
+  box-shadow: inset 2px 2px 0 rgba(15, 23, 42, 0.05);
+}
+
+.attachment-editor-mode .debug-chip-button {
+  min-height: 34px;
+  padding: 0.38rem 0.6rem;
+  border: 2px solid #0f172a;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #0f172a;
+  font: 700 0.68rem/1.05 "Consolas", "JetBrains Mono", "Courier New", monospace;
+  box-shadow: 3px 3px 0 #0f172a;
+}
+
+.attachment-editor-mode .debug-chip-button:hover {
+  background: #f8fafc;
+}
+
+.attachment-editor-mode .debug-chip-button:active {
+  transform: translate(3px, 3px);
+  box-shadow: 0 0 0 #0f172a;
+}
+
+.attachment-editor-mode .debug-chip-button.is-active {
+  background: #fbbf24;
+  color: #0f172a;
+  box-shadow: 3px 3px 0 #0f172a;
+}
+
+.attachment-editor-mode .debug-chip-button:disabled {
+  cursor: default;
+  opacity: 0.5;
+  box-shadow: 2px 2px 0 rgba(15, 23, 42, 0.45);
 }
 
 .hud-header {
@@ -652,6 +1211,63 @@ body {
     top: 12px;
     right: 12px;
     width: min(190px, calc(100% - 24px));
+  }
+
+  .attachment-editor-grid,
+  .attachment-unit-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .debug-overlay {
+    width: min(100%, calc(100% - 24px));
+  }
+
+  .attachment-editor-mode {
+    position: fixed;
+    padding: 12px;
+  }
+
+  .attachment-editor-mode-header,
+  .attachment-editor-mode-grid {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .attachment-editor-mode-actions {
+    justify-content: stretch;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .attachment-editor-mode-stage .attachment-editor-canvas {
+    min-height: 320px;
+  }
+
+  .attachment-editor-toolbar,
+  .attachment-editor-toolbar--compact {
+    display: grid;
+  }
+
+  .attachment-editor-chip-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .attachment-editor-chip-row--view,
+  .attachment-editor-chip-row--transport {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .attachment-editor-chip-row--view-overlay {
+    grid-template-columns: repeat(3, minmax(48px, max-content));
+  }
+
+  .attachment-editor-chip-row--overlay-wide {
+    grid-template-columns: repeat(2, minmax(64px, max-content));
+  }
+
+  .attachment-toolbar-button {
+    min-width: 0;
   }
 
   .action-grid {

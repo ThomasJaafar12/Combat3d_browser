@@ -11,6 +11,12 @@ import { arenaDefinition } from "@/game/environment/arena";
 type PresentationAnimationId =
   | "idle"
   | "run"
+  | "runLeft"
+  | "runRight"
+  | "runBack"
+  | "walkLeft"
+  | "walkRight"
+  | "walkBack"
   | "attack"
   | "cast"
   | "hit"
@@ -104,19 +110,39 @@ const characterConfigs: Record<
 > = {
   leader: {
     modelUrl: assetUrls.characters.leader,
-    animationUrls: assetUrls.characterAnimations.leader,
+    animationUrls: {
+      idle: assetUrls.characterAnimations.leader.idle,
+      run: assetUrls.characterAnimations.leader.run,
+      runLeft: assetUrls.characterAnimations.leader.runLeft,
+      runRight: assetUrls.characterAnimations.leader.runRight,
+      runBack: assetUrls.characterAnimations.leader.runBack,
+      walkLeft: assetUrls.characterAnimations.leader.walkLeft,
+      walkRight: assetUrls.characterAnimations.leader.walkRight,
+      walkBack: assetUrls.characterAnimations.leader.walkBack,
+      attack: assetUrls.characterAnimations.leader.attack,
+      cast: assetUrls.characterAnimations.leader.cast,
+      hit: assetUrls.characterAnimations.leader.hit,
+      death: assetUrls.characterAnimations.leader.death,
+      block: assetUrls.characterAnimations.leader.block,
+      guard: assetUrls.characterAnimations.leader.guard,
+    },
     targetHeight: 2.45,
     rotationOffsetY: 0,
     tint: null,
   },
-  companion_melee: {
-    modelUrl: assetUrls.characters.enemyAxe,
+  companion_paladin: {
+    modelUrl: assetUrls.characters.leaderPaladin,
     animationUrls: {
-      idle: assetUrls.characterAnimations.axe.idle,
-      run: assetUrls.characterAnimations.axe.run,
-      attack: assetUrls.characterAnimations.axe.attack,
-      hit: assetUrls.characterAnimations.axe.hit,
-      guard: assetUrls.characterAnimations.axe.guard,
+      idle: assetUrls.characterAnimations.paladin.idle,
+      run: assetUrls.characterAnimations.paladin.run,
+      runLeft: assetUrls.characterAnimations.paladin.runLeft,
+      runRight: assetUrls.characterAnimations.paladin.runRight,
+      runBack: assetUrls.characterAnimations.paladin.runBack,
+      attack: assetUrls.characterAnimations.paladin.attack,
+      cast: assetUrls.characterAnimations.paladin.cast,
+      hit: assetUrls.characterAnimations.paladin.hit,
+      death: assetUrls.characterAnimations.paladin.death,
+      block: assetUrls.characterAnimations.paladin.block,
     },
     targetHeight: 2.2,
     rotationOffsetY: 0,
@@ -156,8 +182,13 @@ const characterConfigs: Record<
     animationUrls: {
       idle: assetUrls.characterAnimations.axe.idle,
       run: assetUrls.characterAnimations.axe.run,
-      attack: assetUrls.characterAnimations.axe.attackAlt,
+      runLeft: assetUrls.characterAnimations.axe.runLeft,
+      runRight: assetUrls.characterAnimations.axe.runRight,
+      runBack: assetUrls.characterAnimations.axe.runBack,
+      attack: assetUrls.characterAnimations.axe.attack,
+      cast: assetUrls.characterAnimations.axe.cast,
       hit: assetUrls.characterAnimations.axe.hit,
+      block: assetUrls.characterAnimations.axe.block,
       guard: assetUrls.characterAnimations.axe.guard,
     },
     targetHeight: 2.24,
@@ -183,11 +214,15 @@ const characterConfigs: Record<
     animationUrls: {
       idle: assetUrls.characterAnimations.leader.idle,
       run: assetUrls.characterAnimations.leader.run,
+      runLeft: assetUrls.characterAnimations.leader.runLeft,
+      runRight: assetUrls.characterAnimations.leader.runRight,
+      runBack: assetUrls.characterAnimations.leader.runBack,
       attack: assetUrls.characterAnimations.leader.attack,
-      cast: assetUrls.characterAnimations.leader.block,
+      cast: assetUrls.characterAnimations.leader.cast,
       hit: assetUrls.characterAnimations.leader.hit,
       death: assetUrls.characterAnimations.leader.death,
       block: assetUrls.characterAnimations.leader.block,
+      guard: assetUrls.characterAnimations.leader.guard,
     },
     targetHeight: 2.56,
     rotationOffsetY: 0,
@@ -208,6 +243,14 @@ const environmentModelUrls: Record<EnvironmentModelId, string> = {
 
 const usedCharacterPresentationIds = [
   ...new Set(Object.values(prototypeCatalog.units).map((definition) => definition.presentationId)),
+];
+
+const usedAttachmentModelUrls = [
+  ...new Set(
+    Object.values(prototypeCatalog.equipment)
+      .map((definition) => definition.asset.modelUrl)
+      .filter((url): url is string => !!url),
+  ),
 ];
 
 const usedEnvironmentModelUrls = [
@@ -308,7 +351,6 @@ const loadRawModel = (url: string) => {
       const root = new THREE.Group();
       root.add(source);
       setMeshShadows(root);
-      centerObjectOnFloor(root);
       resolve({
         scene: root,
         size: measureObject(root),
@@ -348,7 +390,33 @@ const loadAnimationClip = async (url: string, fallbackName: PresentationAnimatio
   if (!clip) {
     return null;
   }
-  const normalizedClip = clip.clone().resetDuration().trim().optimize();
+  const normalizedClip = clip.clone().resetDuration().trim();
+  normalizedClip.tracks = normalizedClip.tracks.map((track) => {
+    if (!(track instanceof THREE.VectorKeyframeTrack) || !track.name.toLowerCase().endsWith(".position")) {
+      return track;
+    }
+
+    const normalizedName = track.name.toLowerCase();
+    const isRootMotionTrack =
+      normalizedName.includes("hips.position") ||
+      normalizedName.includes("root.position") ||
+      normalizedName.includes("armature.position");
+    const anchoredValues = track.values.slice();
+
+    if (!isRootMotionTrack || anchoredValues.length < 3) {
+      return track;
+    }
+
+    const anchorX = anchoredValues[0];
+    const anchorZ = anchoredValues[2];
+    for (let index = 0; index < anchoredValues.length; index += 3) {
+      anchoredValues[index] = anchorX;
+      anchoredValues[index + 2] = anchorZ;
+    }
+
+    return new THREE.VectorKeyframeTrack(track.name, track.times, anchoredValues, track.getInterpolation());
+  });
+  normalizedClip.optimize();
   normalizedClip.name = fallbackName;
   return normalizedClip;
 };
@@ -391,7 +459,9 @@ export const loadModelAsset = loadRawModel;
 
 const cloneCharacterBundle = (bundle: CharacterBundle): CharacterModelInstance => {
   const scene = clone(bundle.scene) as THREE.Group;
+  centerObjectOnFloor(scene);
   applyUniformHeight(scene, bundle.targetHeight);
+  centerObjectOnFloor(scene);
   tintInstance(scene, bundle.tint);
   scene.updateMatrixWorld(true);
   return {
@@ -401,8 +471,15 @@ const cloneCharacterBundle = (bundle: CharacterBundle): CharacterModelInstance =
   };
 };
 
-const cloneEnvironmentAsset = (asset: LoadedModelAsset, fitSize?: THREE.Vector3Like) => {
+const cloneEnvironmentAsset = (
+  asset: LoadedModelAsset,
+  fitSize?: THREE.Vector3Like,
+  options: { centerOnFloor?: boolean } = {},
+) => {
   const scene = asset.scene.clone(true);
+  if (options.centerOnFloor !== false) {
+    centerObjectOnFloor(scene);
+  }
   if (fitSize) {
     applyBoxFit(scene, fitSize);
   }
@@ -450,8 +527,15 @@ export const useModelAsset = (modelUrl: string, fitSize?: THREE.Vector3Like) =>
     [modelUrl, fitSize?.x, fitSize?.y, fitSize?.z],
   );
 
+export const useEquipmentModel = (modelUrl: string) =>
+  useAsyncClone(
+    () => loadModelAsset(modelUrl).then((asset) => cloneEnvironmentAsset(asset, undefined, { centerOnFloor: false })),
+    [modelUrl],
+  );
+
 export const preloadPresentationAssets = () =>
   Promise.all([
     ...usedCharacterPresentationIds.map((presentationId) => loadCharacterModel(presentationId)),
+    ...usedAttachmentModelUrls.map((modelUrl) => loadModelAsset(modelUrl)),
     ...usedEnvironmentModelUrls.map((modelUrl) => loadModelAsset(modelUrl)),
   ]);

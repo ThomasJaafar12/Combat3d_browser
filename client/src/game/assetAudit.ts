@@ -1,8 +1,16 @@
 export const assetAudit = {
   characters: {
     leader: "assets/game/characters/leader/char_human_swordshield_01.fbx",
-    companion: "assets/game/characters/companions/char_human_archer_01.fbx",
-    enemy: "assets/game/characters/enemies/char_human_axe_01.fbx",
+    companionPaladin: "assets/game/characters/leader_paladin/paladin.fbx",
+    companionArcher: "assets/game/characters/companions/char_human_archer_01.fbx",
+    enemyAxe: "assets/game/characters/enemies/char_human_axe_01.fbx",
+  },
+  equipment: {
+    leaderSword: "assets/game/weapons/melee/weapon_sword_short_01.gltf",
+    leaderShield: "assets/game/weapons/melee/weapon_shield_round_01.gltf",
+  },
+  weaponVisuals: {
+    rangerBow: "assets/game/weapons/ranged/weapon_bow_long_string_01.gltf",
   },
   environment: [
     "assets/game/environment/arena_outdoor/ground/env_ground_arena_brick_01.gltf",

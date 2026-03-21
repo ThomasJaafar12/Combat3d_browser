@@ -1,4 +1,5 @@
 import { prototypeCatalog } from "@/game/content";
+import { formatEquipmentStateSummary, resolveStanceFamily } from "@/game/equipment/system";
 import type { GroundTargetOrderId } from "@/game/input/orderTargeting";
 import type { CombatSnapshot } from "@/game/runtime";
 
@@ -37,6 +38,23 @@ const makeOrderIcon = (orderId: string) => {
   }
 };
 
+const makeEquipmentLabel = (slotId: string) => {
+  switch (slotId) {
+    case "main_hand":
+      return "Main";
+    case "off_hand":
+      return "Off";
+    case "back":
+      return "Back";
+    case "hip_left":
+      return "Hip L";
+    case "hip_right":
+      return "Hip R";
+    default:
+      return slotId;
+  }
+};
+
 export function CombatHUD({
   snapshot,
   armedSpellSlot,
@@ -51,11 +69,15 @@ export function CombatHUD({
   const companions = snapshot.units.filter(
     (unit) => unit.faction === "leader_party" && unit.id !== snapshot.leaderId,
   );
+  const leaderEquipment = leader ? formatEquipmentStateSummary(leader.equipmentState) : null;
+  const leaderStance = leader
+    ? resolveStanceFamily(leader.equipmentState, prototypeCatalog.weapons[leader.weaponId].kind)
+    : "unarmed";
   const controlHint = activeOrderTargeting
     ? `Click ground to place ${prototypeCatalog.orders[activeOrderTargeting].name.toLowerCase()}.`
     : armedSpellSlot !== null
       ? `Spell armed: ${prototypeCatalog.spells[snapshot.activeLoadoutIds[armedSpellSlot]].name}.`
-      : "Q/H/T place area orders. 1-3 arm spells. R revives nearby allies.";
+      : "E toggles equipment. Q/H/T place area orders. 1-3 arm spells. R revives nearby allies.";
 
   return (
     <>
@@ -101,11 +123,30 @@ export function CombatHUD({
           <div className="leader-actions">
             <div className="hud-chip-card">
               <span>Basic</span>
-              <strong>{leader ? prototypeCatalog.weapons[leader.weaponId].name : "Saber"}</strong>
+              <strong>{leader ? prototypeCatalog.weapons[leader.weaponId].name : "Sword and Shield"}</strong>
             </div>
             <div className="hud-chip-card">
               <span>State</span>
-              <strong>{activeOrderTargeting ? "Order targeting" : armedSpellSlot !== null ? "Spell armed" : "Ready"}</strong>
+              <strong>
+                {activeOrderTargeting ? "Order targeting" : armedSpellSlot !== null ? "Spell armed" : leaderStance}
+              </strong>
+            </div>
+            <div className="hud-chip-card">
+              <span>Equipment</span>
+              <strong>
+                {leaderEquipment
+                  ? [
+                      ...leaderEquipment.active.map((entry) => {
+                        const [slotId, label] = entry.split(": ");
+                        return `${makeEquipmentLabel(slotId)} ${label}`;
+                      }),
+                      ...leaderEquipment.stored.map((entry) => {
+                        const [slotId, label] = entry.split(": ");
+                        return `${makeEquipmentLabel(slotId)} ${label}`;
+                      }),
+                    ].join(" / ") || "Unarmed"
+                  : "n/a"}
+              </strong>
             </div>
           </div>
         </section>

@@ -6,6 +6,10 @@ type RenderState = {
   leader: {
     resource: number;
     spellCooldowns: Record<string, number>;
+    equipment: {
+      active: Record<string, string | null>;
+      stored: Record<string, string | null>;
+    };
   } | null;
   companions: Array<{
     id: string;
@@ -102,6 +106,20 @@ async function main() {
 
     let state = await readState(page);
     assert.equal(state.companions.length, 3, "expected three recruited companions");
+    assert.equal(Object.keys(state.leader?.equipment.active ?? {}).length > 0, true, "leader should start equipped");
+
+    await page.keyboard.press("KeyE");
+    await advanceTime(page, 100);
+
+    state = await readState(page);
+    assert.equal(Object.keys(state.leader?.equipment.active ?? {}).length, 0, "toggle should clear active equipment");
+    assert.equal(Object.keys(state.leader?.equipment.stored ?? {}).length > 0, true, "toggle should move items into storage");
+
+    await page.keyboard.press("KeyE");
+    await advanceTime(page, 100);
+
+    state = await readState(page);
+    assert.equal(Object.keys(state.leader?.equipment.active ?? {}).length > 0, true, "toggle should restore the default loadout");
 
     await page.getByTestId("start-battle").click();
     await advanceTime(page, 200);
@@ -141,13 +159,22 @@ async function main() {
     assert.equal((state.leader?.spellCooldowns?.steam_snare ?? 0) > 0, true, "spell cast should trigger cooldown");
 
     await page.locator("#debug-down-ally").click();
+    await advanceTime(page, 100);
+    state = await readState(page);
+    const downedCompanionId = state.companions.find((companion) => companion.downed)?.id ?? null;
+    assert.notEqual(downedCompanionId, null, "debug down ally should produce a downed companion");
+
     await callCombatDebug(page, (api) => {
       api.reviveNearest();
     });
     await advanceTime(page, 1800);
 
     state = await readState(page);
-    assert.equal(state.companions.some((companion) => companion.downed), false, "revive should restore the downed companion");
+    assert.equal(
+      state.companions.find((companion) => companion.id === downedCompanionId)?.downed ?? true,
+      false,
+      "revive should restore the targeted downed companion",
+    );
 
     await page.locator("#debug-clear-enemies").click();
     await advanceTime(page, 200);

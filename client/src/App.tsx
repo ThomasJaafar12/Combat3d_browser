@@ -1,14 +1,24 @@
 import { Canvas } from "@react-three/fiber";
-import { useDeferredValue, useEffect, useRef, useState } from "react";
-import { CombatScene, type GroundPreviewState, type ScenePerformanceSample } from "@/components/CombatScene";
+import { startTransition, useDeferredValue, useEffect, useRef, useState } from "react";
+import { AttachmentEditorViewport } from "@/components/AttachmentEditorViewport";
+import {
+  CombatScene,
+  type AttachmentDebugOptions,
+  type GroundPreviewState,
+  type ScenePerformanceSample,
+} from "@/components/CombatScene";
 import { CombatHUD } from "@/components/HUD/CombatHUD";
 import { featureFlags } from "@/config/featureFlags";
 import { preloadPresentationAssets } from "@/game/assets/loader";
 import { createCombatAudioSystem } from "@/game/audio/audioSystem";
 import { assetAudit } from "@/game/assetAudit";
 import { catalogSummary, prototypeCatalog } from "@/game/content";
+import { equipmentItemsById, getRigProfileIdForPresentation } from "@/game/equipment/catalog";
+import type { AttachmentDebugReport, AttachmentProfileOverrideMap, TransformPose } from "@/game/equipment/schema";
+import { assertValidAttachmentCatalog } from "@/game/equipment/validation";
 import { createCombatAuthority, reviveChannelMs } from "@/game/engine";
-import type { RewardId, SpellId } from "@/game/defs";
+import { equipmentSystem, resolveAttachmentProfile, resolveStanceFamily, resolveVisibleEquipmentView } from "@/game/equipment/system";
+import type { RewardId, SpellId, UnitArchetypeId, UnitDefinition } from "@/game/defs";
 import {
   type GroundTargetOrderId,
   type OrderTargetingState,
@@ -36,6 +46,65 @@ const resolveMovementDirection = (event: KeyboardEvent): MovementDirection | nul
   return null;
 };
 
+const ATTACHMENT_OVERRIDE_STORAGE_KEY = "combat3d_attachment_profile_overrides_v1";
+
+const readAttachmentOverrides = (): AttachmentProfileOverrideMap => {
+  if (typeof window === "undefined") {
+    return {};
+  }
+
+  try {
+    const raw = window.localStorage.getItem(ATTACHMENT_OVERRIDE_STORAGE_KEY);
+    if (!raw) {
+      return {};
+    }
+    return JSON.parse(raw) as AttachmentProfileOverrideMap;
+  } catch (error) {
+    console.warn("Attachment override load failed", error);
+    return {};
+  }
+};
+
+const writeAttachmentOverrides = (overrides: AttachmentProfileOverrideMap) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(ATTACHMENT_OVERRIDE_STORAGE_KEY, JSON.stringify(overrides));
+};
+
+const cloneTransformPose = (pose: TransformPose): TransformPose => ({
+  position: { ...pose.position },
+  rotation: { ...pose.rotation },
+  scale: pose.scale,
+});
+
+const cloneAttachmentOverrides = (overrides: AttachmentProfileOverrideMap): AttachmentProfileOverrideMap =>
+  Object.fromEntries(
+    Object.entries(overrides)
+      .filter((entry): entry is [string, TransformPose] => !!entry[1])
+      .map(([profileId, pose]) => [profileId, cloneTransformPose(pose)]),
+  );
+
+const radiansToDegrees = (radians: number) => Math.round((radians * 180 * 10) / Math.PI) / 10;
+const degreesToRadians = (degrees: number) => (degrees * Math.PI) / 180;
+
+const editorUnitSortOrder: Record<UnitArchetypeId, number> = {
+  leader_captain: 0,
+  companion_vanguard: 1,
+  companion_ranger: 2,
+  companion_mender: 3,
+  enemy_melee_chaser: 4,
+  enemy_ranged_caster: 5,
+  enemy_tank_disruptor: 6,
+};
+
+interface AttachmentEditorSession {
+  unitDefinitionId: UnitArchetypeId;
+  selectedProfileId: string | null;
+  draftOverrides: AttachmentProfileOverrideMap;
+}
+
 const summarizeSnapshot = (snapshot: CombatSnapshot) => {
   const leader = snapshot.units.find((unit) => unit.id === snapshot.leaderId);
   const livingEnemies = snapshot.units.filter((unit) => unit.faction === "enemy" && !unit.isDead);
@@ -60,6 +129,25 @@ const summarizeSnapshot = (snapshot: CombatSnapshot) => {
           position: {
             x: Math.round(leader.position.x * 10) / 10,
             z: Math.round(leader.position.z * 10) / 10,
+          },
+          moveIntent: {
+            x: Math.round(leader.moveIntent.x * 10) / 10,
+            z: Math.round(leader.moveIntent.z * 10) / 10,
+          },
+          stanceFamily: resolveStanceFamily(leader.equipmentState, prototypeCatalog.weapons[leader.weaponId].kind),
+          equipment: {
+            active: Object.fromEntries(
+              Object.entries(leader.equipmentState.activeSlots).map(([slotId, equipmentId]) => [
+                slotId,
+                equipmentId ? equipmentItemsById[equipmentId]?.name ?? equipmentId : null,
+              ]),
+            ),
+            stored: Object.fromEntries(
+              Object.entries(leader.equipmentState.storageSlots).map(([slotId, equipmentId]) => [
+                slotId,
+                equipmentId ? equipmentItemsById[equipmentId]?.name ?? equipmentId : null,
+              ]),
+            ),
           },
         }
       : null,
@@ -101,6 +189,7 @@ function App() {
   const authority = authorityRef.current;
   const audioRef = useRef(createCombatAudioSystem());
   const viewportRef = useRef<HTMLElement | null>(null);
+  const [showSetupPanel, setShowSetupPanel] = useState(true);
   const [snapshot, setSnapshot] = useState(() => authority.getSnapshot());
   const snapshotRef = useRef(snapshot);
   const deferredSnapshot = useDeferredValue(snapshot);
@@ -121,6 +210,16 @@ function App() {
   const [orderTargeting, setOrderTargeting] = useState<OrderTargetingState | null>(null);
   const [editingLoadoutSlot, setEditingLoadoutSlot] = useState(0);
   const [orderScope, setOrderScope] = useState<"all" | "frontline" | "backline" | "support" | "alpha" | "bravo">("all");
+  const [attachmentOverrides, setAttachmentOverrides] = useState<AttachmentProfileOverrideMap>(() => readAttachmentOverrides());
+  const [attachmentReports, setAttachmentReports] = useState<Record<string, AttachmentDebugReport | null>>({});
+  const [attachmentInspectUnitId, setAttachmentInspectUnitId] = useState<string | null>(null);
+  const [selectedAttachmentProfileId, setSelectedAttachmentProfileId] = useState<string | null>(null);
+  const [showAttachmentSockets, setShowAttachmentSockets] = useState(true);
+  const [showAttachmentMarkers, setShowAttachmentMarkers] = useState(true);
+  const [showAttachmentSkeleton, setShowAttachmentSkeleton] = useState(false);
+  const [attachmentCopyNotice, setAttachmentCopyNotice] = useState<string | null>(null);
+  const [attachmentEditorSession, setAttachmentEditorSession] = useState<AttachmentEditorSession | null>(null);
+  const isAttachmentEditorMode = attachmentEditorSession !== null;
   const orderScopeRef = useRef(orderScope);
   const movementKeysRef = useRef({
     forward: false,
@@ -145,6 +244,7 @@ function App() {
   }, [authority]);
 
   useEffect(() => {
+    assertValidAttachmentCatalog();
     preloadPresentationAssets().catch((error) => {
       console.error("Presentation asset preload failed", error);
     });
@@ -173,6 +273,16 @@ function App() {
   }, [snapshot.phase]);
 
   useEffect(() => {
+    if (snapshot.phase === "battle") {
+      setShowSetupPanel(false);
+      return;
+    }
+    if (snapshot.phase === "loadout") {
+      setShowSetupPanel(true);
+    }
+  }, [snapshot.phase]);
+
+  useEffect(() => {
     viewportRef.current?.focus();
   }, []);
 
@@ -183,6 +293,35 @@ function App() {
   useEffect(() => {
     orderScopeRef.current = orderScope;
   }, [orderScope]);
+
+  useEffect(() => {
+    writeAttachmentOverrides(attachmentOverrides);
+  }, [attachmentOverrides]);
+
+  useEffect(() => {
+    if (!attachmentCopyNotice) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setAttachmentCopyNotice(null);
+    }, 1800);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [attachmentCopyNotice]);
+
+  useEffect(() => {
+    const currentInspectUnitExists = attachmentInspectUnitId
+      ? snapshot.units.some((unit) => unit.id === attachmentInspectUnitId)
+      : false;
+    if (currentInspectUnitExists) {
+      return;
+    }
+
+    setAttachmentInspectUnitId(snapshot.selectedTargetId ?? snapshot.leaderId);
+  }, [attachmentInspectUnitId, snapshot.leaderId, snapshot.selectedTargetId, snapshot.units]);
 
   useEffect(() => {
     setLiveOps((current) => ({
@@ -226,6 +365,13 @@ function App() {
     const maxCatchUpSteps = 4;
 
     const tick = (now: number) => {
+      if (isAttachmentEditorMode) {
+        previousTime = now;
+        simulationAccumulatorRef.current = 0;
+        frameId = window.requestAnimationFrame(tick);
+        return;
+      }
+
       const deltaMs = Math.min(100, now - previousTime);
       previousTime = now;
       const input = movementKeysRef.current;
@@ -257,7 +403,7 @@ function App() {
     return () => {
       window.cancelAnimationFrame(frameId);
     };
-  }, [authority]);
+  }, [authority, isAttachmentEditorMode]);
 
   useEffect(() => {
     if (!snapshot.presentationEvents.length) {
@@ -293,11 +439,16 @@ function App() {
 
   useEffect(() => {
     const renderGameToText = () =>
-      JSON.stringify({
-        featureFlags,
-        assetAudit,
-        ...summarizeSnapshot(authority.getSnapshot()),
-      });
+      JSON.stringify((() => {
+        const liveSnapshot = authority.getSnapshot();
+        const summary = summarizeSnapshot(liveSnapshot);
+
+        return {
+          featureFlags,
+          assetAudit,
+          ...summary,
+        };
+      })());
 
     const advanceTime = (ms: number) => authority.advanceTime(ms);
     const combatDebug = {
@@ -340,6 +491,13 @@ function App() {
       chooseReward: (rewardId: RewardId) => {
         authority.chooseReward(rewardId);
       },
+      getAttachmentOverrides: () => attachmentOverrides,
+      resetAttachmentOverrides: () => {
+        setAttachmentOverrides({});
+      },
+      inspectUnit: (unitId: string | null) => {
+        setAttachmentInspectUnitId(unitId);
+      },
     };
 
     Object.assign(window, {
@@ -353,16 +511,21 @@ function App() {
       delete (window as Window & { advanceTime?: (ms: number) => void }).advanceTime;
       delete (window as Window & { combat_debug?: unknown }).combat_debug;
     };
-  }, [authority]);
+  }, [attachmentOverrides, authority]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (isAttachmentEditorMode) {
+        return;
+      }
+
       void audioRef.current.unlock();
       const movementDirection = resolveMovementDirection(event);
       if (
         movementDirection ||
         event.code === "Space" ||
         event.code === "Escape" ||
+        event.code === "KeyE" ||
         event.code === "KeyR" ||
         event.code === "Digit1" ||
         event.code === "Digit2" ||
@@ -384,6 +547,11 @@ function App() {
       if (event.code === "Escape") {
         setArmedSpellSlot(null);
         setOrderTargeting(null);
+        return;
+      }
+
+      if (event.code === "KeyE") {
+        authority.toggleLeaderEquipment();
         return;
       }
 
@@ -433,6 +601,10 @@ function App() {
     };
 
     const handleKeyUp = (event: KeyboardEvent) => {
+      if (attachmentEditorSession) {
+        return;
+      }
+
       const movementDirection = resolveMovementDirection(event);
       if (movementDirection) {
         event.preventDefault();
@@ -448,7 +620,7 @@ function App() {
       window.removeEventListener("keydown", handleKeyDown, { capture: true });
       window.removeEventListener("keyup", handleKeyUp, { capture: true });
     };
-  }, [authority]);
+  }, [authority, isAttachmentEditorMode]);
 
   const leader = snapshot.units.find((unit) => unit.id === snapshot.leaderId) ?? null;
   const selectedTarget =
@@ -515,6 +687,275 @@ function App() {
         })),
       ]
     : [];
+  const resolveRuntimeAttachmentContext = (
+    unit: CombatSnapshot["units"][number] | null,
+    overrides: AttachmentProfileOverrideMap,
+  ) => {
+    if (!unit) {
+      return null;
+    }
+
+    const unitDefinition = prototypeCatalog.units[unit.definitionId];
+    const rigProfileId = getRigProfileIdForPresentation(unitDefinition.presentationId);
+    const weaponKind = prototypeCatalog.weapons[unit.weaponId].kind;
+    const equipmentView = resolveVisibleEquipmentView(unit.equipmentState, rigProfileId, weaponKind, overrides);
+    return {
+      unitDefinition,
+      rigProfileId,
+      presentationId: unitDefinition.presentationId,
+      equipmentState: unit.equipmentState,
+      equipmentView,
+    };
+  };
+  const resolveDefinitionAttachmentContext = (
+    unitDefinition: UnitDefinition | null,
+    overrides: AttachmentProfileOverrideMap,
+  ) => {
+    if (!unitDefinition) {
+      return null;
+    }
+
+    const rigProfileId = getRigProfileIdForPresentation(unitDefinition.presentationId);
+    const weaponKind = prototypeCatalog.weapons[unitDefinition.weaponId].kind;
+    const equipmentState = equipmentSystem.createStateFromLoadout(unitDefinition.equipmentLoadout);
+    const equipmentView = resolveVisibleEquipmentView(equipmentState, rigProfileId, weaponKind, overrides);
+    return {
+      unitDefinition,
+      rigProfileId,
+      presentationId: unitDefinition.presentationId,
+      equipmentState,
+      equipmentView,
+    };
+  };
+  const editorUnitDefinitions = Object.values(prototypeCatalog.units).sort(
+    (left, right) => editorUnitSortOrder[left.id] - editorUnitSortOrder[right.id],
+  );
+  const inspectedAttachmentUnit =
+    attachmentInspectUnitId ? deferredSnapshot.units.find((unit) => unit.id === attachmentInspectUnitId) ?? null : null;
+  const inspectedAttachmentContext = resolveRuntimeAttachmentContext(inspectedAttachmentUnit, attachmentOverrides);
+  const inspectedAttachmentReport = attachmentInspectUnitId ? attachmentReports[attachmentInspectUnitId] ?? null : null;
+  const selectedAttachmentBinding =
+    inspectedAttachmentContext?.equipmentView.bindings.find((binding) => binding.profileId === selectedAttachmentProfileId) ??
+    inspectedAttachmentContext?.equipmentView.bindings[0] ??
+    null;
+  const selectedAttachmentProfile =
+    inspectedAttachmentContext && selectedAttachmentBinding
+      ? resolveAttachmentProfile(
+          inspectedAttachmentContext.rigProfileId,
+          selectedAttachmentBinding.itemId,
+          selectedAttachmentBinding.socketId,
+          selectedAttachmentBinding.stanceFamily,
+          attachmentOverrides,
+        )
+      : null;
+  const attachmentEditorDefinition = attachmentEditorSession
+    ? prototypeCatalog.units[attachmentEditorSession.unitDefinitionId]
+    : null;
+  const attachmentEditorContext = resolveDefinitionAttachmentContext(
+    attachmentEditorDefinition,
+    attachmentEditorSession?.draftOverrides ?? attachmentOverrides,
+  );
+  const attachmentEditorSelectedBinding =
+    attachmentEditorContext?.equipmentView.bindings.find(
+      (binding) => binding.profileId === attachmentEditorSession?.selectedProfileId,
+    ) ??
+    attachmentEditorContext?.equipmentView.bindings[0] ??
+    null;
+  const attachmentEditorSelectedProfile =
+    attachmentEditorContext && attachmentEditorSelectedBinding
+      ? resolveAttachmentProfile(
+          attachmentEditorContext.rigProfileId,
+          attachmentEditorSelectedBinding.itemId,
+          attachmentEditorSelectedBinding.socketId,
+          attachmentEditorSelectedBinding.stanceFamily,
+          attachmentEditorSession?.draftOverrides ?? attachmentOverrides,
+        )
+      : null;
+  const attachmentEditorExport =
+    attachmentEditorSelectedProfile && attachmentEditorSelectedBinding
+      ? JSON.stringify(
+          {
+            attachmentProfileId: attachmentEditorSelectedProfile.id,
+            rigProfileId: attachmentEditorContext?.rigProfileId ?? null,
+            itemId: attachmentEditorSelectedBinding.itemId,
+            socketId: attachmentEditorSelectedBinding.socketId,
+            stanceFamily: attachmentEditorSelectedBinding.stanceFamily,
+            sourceMarkerId: attachmentEditorSelectedProfile.sourceMarkerId,
+            poseOffset: attachmentEditorSelectedProfile.resolvedPoseOffset,
+          },
+          null,
+          2,
+        )
+      : "";
+  const attachmentDebugOptions: AttachmentDebugOptions = {
+    inspectUnitId: attachmentInspectUnitId,
+    showSockets: showAttachmentSockets,
+    showMarkers: showAttachmentMarkers,
+    showSkeleton: showAttachmentSkeleton,
+    overrides: attachmentOverrides,
+  };
+
+  useEffect(() => {
+    const firstProfileId = inspectedAttachmentContext?.equipmentView.bindings[0]?.profileId ?? null;
+    if (!firstProfileId) {
+      if (selectedAttachmentProfileId !== null) {
+        setSelectedAttachmentProfileId(null);
+      }
+      return;
+    }
+
+    if (
+      !selectedAttachmentProfileId ||
+      !inspectedAttachmentContext?.equipmentView.bindings.some(
+        (binding) => binding.profileId === selectedAttachmentProfileId,
+      )
+    ) {
+      setSelectedAttachmentProfileId(firstProfileId);
+    }
+  }, [inspectedAttachmentContext, selectedAttachmentProfileId]);
+
+  useEffect(() => {
+    if (!attachmentEditorSession) {
+      return;
+    }
+
+    if (!attachmentEditorDefinition) {
+      setAttachmentEditorSession(null);
+      return;
+    }
+
+    const firstProfileId = attachmentEditorContext?.equipmentView.bindings[0]?.profileId ?? null;
+    if (!firstProfileId) {
+      setAttachmentEditorSession((current) =>
+        current
+          ? {
+              ...current,
+              selectedProfileId: null,
+            }
+          : current,
+      );
+      return;
+    }
+
+    if (
+      attachmentEditorSession.selectedProfileId &&
+      attachmentEditorContext?.equipmentView.bindings.some(
+        (binding) => binding.profileId === attachmentEditorSession.selectedProfileId,
+      )
+    ) {
+      return;
+    }
+
+    setAttachmentEditorSession((current) =>
+      current
+        ? {
+            ...current,
+            selectedProfileId: firstProfileId,
+          }
+        : current,
+    );
+  }, [attachmentEditorContext, attachmentEditorDefinition, attachmentEditorSession]);
+
+  const handleAttachmentDebugReport = (unitId: string, report: AttachmentDebugReport | null) => {
+    setAttachmentReports((current) => {
+      if (!report && !current[unitId]) {
+        return current;
+      }
+      return {
+        ...current,
+        [unitId]: report,
+      };
+    });
+  };
+
+  const copyAttachmentExport = async (payload: string) => {
+    if (!payload) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(payload);
+      setAttachmentCopyNotice("Attachment profile copied.");
+    } catch (error) {
+      console.warn("Attachment profile copy failed", error);
+      setAttachmentCopyNotice("Clipboard copy failed.");
+    }
+  };
+
+  const updateAttachmentEditorDraftPose = (profileId: string, nextPose: TransformPose) => {
+    startTransition(() => {
+      setAttachmentEditorSession((current) =>
+        current
+          ? {
+              ...current,
+              draftOverrides: {
+                ...current.draftOverrides,
+                [profileId]: cloneTransformPose(nextPose),
+              },
+            }
+          : current,
+      );
+    });
+  };
+
+  const updateAttachmentEditorDraft = (profileId: string, basePose: TransformPose, patch: Partial<TransformPose>) => {
+    const nextPose = cloneTransformPose(basePose);
+    if (patch.position) {
+      nextPose.position = { ...patch.position };
+    }
+    if (patch.rotation) {
+      nextPose.rotation = { ...patch.rotation };
+    }
+    if (typeof patch.scale === "number") {
+      nextPose.scale = patch.scale;
+    }
+
+    updateAttachmentEditorDraftPose(profileId, nextPose);
+  };
+
+  const resetAttachmentEditorDraft = (profileId: string) => {
+    startTransition(() => {
+      setAttachmentEditorSession((current) => {
+        if (!current?.draftOverrides[profileId]) {
+          return current;
+        }
+        const nextOverrides = { ...current.draftOverrides };
+        delete nextOverrides[profileId];
+        return {
+          ...current,
+          draftOverrides: nextOverrides,
+        };
+      });
+    });
+  };
+
+  const openAttachmentEditor = () => {
+    if (!inspectedAttachmentUnit) {
+      return;
+    }
+
+    setAttachmentEditorSession({
+      unitDefinitionId: inspectedAttachmentUnit.definitionId,
+      selectedProfileId: selectedAttachmentBinding?.profileId ?? null,
+      draftOverrides: cloneAttachmentOverrides(attachmentOverrides),
+    });
+    setShowSetupPanel(false);
+  };
+
+  const saveAttachmentEditorSession = () => {
+    if (!attachmentEditorSession) {
+      return;
+    }
+
+    startTransition(() => {
+      setAttachmentOverrides(cloneAttachmentOverrides(attachmentEditorSession.draftOverrides));
+    });
+    setAttachmentEditorSession(null);
+  };
+
+  const discardAttachmentEditorSession = () => {
+    setAttachmentEditorSession(null);
+  };
 
   const assignLoadoutSpell = (spellId: SpellId) => {
     const nextLoadout = [...snapshot.activeLoadoutIds];
@@ -603,10 +1044,17 @@ function App() {
   };
 
   return (
-    <div className="app-shell">
-      <aside className="boot-panel">
-        <p className="eyebrow">Commit 3 authority foundation</p>
-        <h1>Combat Prototype V0</h1>
+    <div className={`app-shell${showSetupPanel ? "" : " app-shell-setup-collapsed"}`}>
+      <aside className={`boot-panel${showSetupPanel ? "" : " boot-panel-hidden"}`}>
+        <div className="boot-panel-header">
+          <div>
+            <p className="eyebrow">Commit 3 authority foundation</p>
+            <h1>Combat Prototype V0</h1>
+          </div>
+          <button className="setup-panel-close" onClick={() => setShowSetupPanel(false)} type="button">
+            Hide setup
+          </button>
+        </div>
         <p>
           Combat state now lives behind an authority layer. The UI is still a debug-heavy shell,
           but leader state, recruit flow, battle start, reward gating, cooldown ticking, downed
@@ -664,6 +1112,7 @@ function App() {
             <li>Statuses: {catalogSummary.statusCount}</li>
             <li>Orders: {catalogSummary.orderCount}</li>
             <li>Rewards: {catalogSummary.rewardCount}</li>
+            <li>Equipment: {catalogSummary.equipmentCount}</li>
           </ul>
         </section>
 
@@ -1008,6 +1457,9 @@ function App() {
           event.preventDefault();
         }}
         onMouseDown={(event) => {
+          if (isAttachmentEditorMode) {
+            return;
+          }
           void audioRef.current.unlock();
           viewportRef.current?.focus();
           if (event.button !== 2) {
@@ -1018,6 +1470,9 @@ function App() {
           cameraOrbitRef.current.lastClientY = event.clientY;
         }}
         onMouseMove={(event) => {
+          if (isAttachmentEditorMode) {
+            return;
+          }
           if (!cameraOrbitRef.current.dragging) {
             return;
           }
@@ -1029,89 +1484,102 @@ function App() {
           cameraOrbitRef.current.pitch = Math.min(0.7, Math.max(0.2, cameraOrbitRef.current.pitch - deltaY * 0.0045));
         }}
         onMouseUp={() => {
+          if (isAttachmentEditorMode) {
+            return;
+          }
           cameraOrbitRef.current.dragging = false;
         }}
         onMouseLeave={() => {
+          if (isAttachmentEditorMode) {
+            return;
+          }
           cameraOrbitRef.current.dragging = false;
         }}
         onWheel={(event) => {
+          if (isAttachmentEditorMode) {
+            return;
+          }
           event.preventDefault();
         }}
       >
-        <Canvas
-          camera={{ position: [0, 7, 12], fov: 42 }}
-          shadows={false}
-          dpr={[1, 1.5]}
-          gl={{
-            antialias: false,
-            powerPreference: "high-performance",
-          }}
-        >
-          <CombatScene
-            snapshot={snapshot}
-            cameraOrbit={cameraOrbitRef.current}
-            onGroundClick={handleGroundClick}
-            onGroundHover={setGroundHoverPoint}
-            onUnitClick={handleUnitClick}
-            groundPreview={groundPreview}
-            reviveIndicatorUnitId={reviveIndicatorTargetId}
-            onPerformanceSample={(sample) => {
-              setLiveOps((current) => ({
-                ...current,
-                ...sample,
-              }));
-            }}
-          />
-        </Canvas>
-        <CombatHUD
-          snapshot={snapshot}
-          armedSpellSlot={armedSpellSlot}
-          activeOrderTargeting={orderTargeting?.orderId ?? null}
-          onSpellSlotClick={(index) => {
-            playUiConfirm();
-            const spellId = snapshot.activeLoadoutIds[index];
-            const spell = spellId ? prototypeCatalog.spells[spellId] : null;
-            if (!spell) {
-              return;
-            }
-            if (spell.targetingMode === "self") {
-              authority.commandLeaderSpell(index, {
-                targetPoint: leader?.position ?? vec3(),
-                direction: yawToDirection(cameraOrbitRef.current.yaw),
-              });
-              setArmedSpellSlot(null);
-              return;
-            }
-            setOrderTargeting(null);
-            setArmedSpellSlot(index);
-          }}
-          onChooseReward={(rewardId) => {
-            playUiConfirm();
-            authority.chooseReward(rewardId);
-          }}
-        />
-        <div className="liveops-panel hud-card" aria-live="polite">
-          <div className="liveops-header">
-            <p className="hud-kicker">Live Ops</p>
-            <strong>{liveOps.fps.toFixed(0)} FPS</strong>
-          </div>
-          <div className="liveops-grid">
-            <span>Frame</span>
-            <strong>{liveOps.frameMs.toFixed(1)} ms</strong>
-            <span>Sim</span>
-            <strong>{liveOps.snapshotHz.toFixed(0)} Hz</strong>
-            <span>Draw calls</span>
-            <strong>{liveOps.drawCalls}</strong>
-            <span>Triangles</span>
-            <strong>{liveOps.triangles.toLocaleString()}</strong>
-            <span>Units</span>
-            <strong>{liveOps.units}</strong>
-            <span>FX</span>
-            <strong>{liveOps.projectiles + liveOps.floatingTexts}</strong>
-          </div>
-        </div>
-        {featureFlags.enableDebugTools ? (
-          <div className="debug-overlay hud-card">
+        {!isAttachmentEditorMode ? (
+          <>
+            <Canvas
+              camera={{ position: [0, 7, 12], fov: 42 }}
+              shadows={false}
+              dpr={[1, 1.5]}
+              gl={{
+                antialias: false,
+                powerPreference: "high-performance",
+              }}
+            >
+              <CombatScene
+                snapshot={snapshot}
+                cameraOrbit={cameraOrbitRef.current}
+                onGroundClick={handleGroundClick}
+                onGroundHover={setGroundHoverPoint}
+                onUnitClick={handleUnitClick}
+                groundPreview={groundPreview}
+                reviveIndicatorUnitId={reviveIndicatorTargetId}
+                attachmentDebug={attachmentDebugOptions}
+                onAttachmentDebugReport={handleAttachmentDebugReport}
+                onPerformanceSample={(sample) => {
+                  setLiveOps((current) => ({
+                    ...current,
+                    ...sample,
+                  }));
+                }}
+              />
+            </Canvas>
+            <CombatHUD
+              snapshot={snapshot}
+              armedSpellSlot={armedSpellSlot}
+              activeOrderTargeting={orderTargeting?.orderId ?? null}
+              onSpellSlotClick={(index) => {
+                playUiConfirm();
+                const spellId = snapshot.activeLoadoutIds[index];
+                const spell = spellId ? prototypeCatalog.spells[spellId] : null;
+                if (!spell) {
+                  return;
+                }
+                if (spell.targetingMode === "self") {
+                  authority.commandLeaderSpell(index, {
+                    targetPoint: leader?.position ?? vec3(),
+                    direction: yawToDirection(cameraOrbitRef.current.yaw),
+                  });
+                  setArmedSpellSlot(null);
+                  return;
+                }
+                setOrderTargeting(null);
+                setArmedSpellSlot(index);
+              }}
+              onChooseReward={(rewardId) => {
+                playUiConfirm();
+                authority.chooseReward(rewardId);
+              }}
+            />
+            <div className="liveops-panel hud-card" aria-live="polite">
+              <div className="liveops-header">
+                <p className="hud-kicker">Live Ops</p>
+                <strong>{liveOps.fps.toFixed(0)} FPS</strong>
+              </div>
+              <div className="liveops-grid">
+                <span>Frame</span>
+                <strong>{liveOps.frameMs.toFixed(1)} ms</strong>
+                <span>Sim</span>
+                <strong>{liveOps.snapshotHz.toFixed(0)} Hz</strong>
+                <span>Draw calls</span>
+                <strong>{liveOps.drawCalls}</strong>
+                <span>Triangles</span>
+                <strong>{liveOps.triangles.toLocaleString()}</strong>
+                <span>Units</span>
+                <strong>{liveOps.units}</strong>
+                <span>FX</span>
+                <strong>{liveOps.projectiles + liveOps.floatingTexts}</strong>
+              </div>
+            </div>
+            {featureFlags.enableDebugTools ? (
+              <div className="debug-overlay hud-card">
             <div className="liveops-header">
               <p className="hud-kicker">Debug</p>
               <strong>{snapshot.phase}</strong>
@@ -1200,6 +1668,263 @@ function App() {
                 Clear wave
               </button>
             </div>
+            <div className="attachment-debug-panel">
+              <div className="liveops-header">
+                <p className="hud-kicker">Attachment Lab</p>
+                <strong>{attachmentInspectUnitId ?? "none"}</strong>
+              </div>
+              <div className="attachment-unit-grid">
+                {orderedUnits.slice(0, 6).map((unit) => (
+                  <button
+                    key={unit.id}
+                    className={`debug-chip-button${attachmentInspectUnitId === unit.id ? " is-active" : ""}`}
+                    onClick={() => {
+                      setAttachmentInspectUnitId(unit.id);
+                    }}
+                    type="button"
+                  >
+                    {unit.name}
+                  </button>
+                ))}
+              </div>
+              <div className="debug-toggle-grid">
+                <button
+                  className={`debug-chip-button${showAttachmentSockets ? " is-active" : ""}`}
+                  onClick={() => {
+                    setShowAttachmentSockets((current) => !current);
+                  }}
+                  type="button"
+                >
+                  Sockets
+                </button>
+                <button
+                  className={`debug-chip-button${showAttachmentMarkers ? " is-active" : ""}`}
+                  onClick={() => {
+                    setShowAttachmentMarkers((current) => !current);
+                  }}
+                  type="button"
+                >
+                  Markers
+                </button>
+                <button
+                  className={`debug-chip-button${showAttachmentSkeleton ? " is-active" : ""}`}
+                  onClick={() => {
+                    setShowAttachmentSkeleton((current) => !current);
+                  }}
+                  type="button"
+                >
+                  Skeleton
+                </button>
+                <button
+                  className="debug-chip-button"
+                  onClick={() => {
+                    setAttachmentOverrides({});
+                  }}
+                  type="button"
+                >
+                  Reset all
+                </button>
+              </div>
+              {inspectedAttachmentContext ? (
+                <>
+                  <div className="debug-readout">
+                    <span>Rig</span>
+                    <strong>{inspectedAttachmentContext.rigProfileId}</strong>
+                    <span>Stance</span>
+                    <strong>{inspectedAttachmentContext.equipmentView.stanceFamily}</strong>
+                    <span>Bindings</span>
+                    <strong>
+                      {inspectedAttachmentContext.equipmentView.bindings.length > 0
+                        ? inspectedAttachmentContext.equipmentView.bindings.map((binding) => binding.profileId).join(" | ")
+                        : "None"}
+                    </strong>
+                    <span>Sockets</span>
+                    <strong>
+                      {inspectedAttachmentReport
+                        ? Object.entries(inspectedAttachmentReport.resolvedSockets)
+                            .map(([socketId, nodeName]) => `${socketId}:${nodeName ?? "missing"}`)
+                            .join(" | ")
+                        : "Open editor mode to inspect sockets and tune offsets."}
+                    </strong>
+                  </div>
+                  {inspectedAttachmentContext.equipmentView.bindings.length > 0 ? (
+                    <>
+                      <div className="attachment-unit-grid">
+                        {inspectedAttachmentContext.equipmentView.bindings.map((binding) => (
+                          <button
+                            key={binding.profileId}
+                            className={`debug-chip-button${selectedAttachmentProfileId === binding.profileId ? " is-active" : ""}`}
+                            onClick={() => {
+                              setSelectedAttachmentProfileId(binding.profileId);
+                            }}
+                            type="button"
+                          >
+                            {equipmentItemsById[binding.itemId].name}
+                          </button>
+                        ))}
+                      </div>
+                      {selectedAttachmentProfile && selectedAttachmentBinding ? (
+                        <button
+                          className="debug-chip-button attachment-open-editor-button"
+                          onClick={() => {
+                            openAttachmentEditor();
+                          }}
+                          type="button"
+                        >
+                          Open editor mode
+                        </button>
+                      ) : (
+                        <p className="hud-empty">Select a visible attachment to open it in the editor.</p>
+                      )}
+                      {/*
+                          <div className="attachment-editor-grid">
+                            <label>
+                              Px
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={selectedAttachmentProfile.resolvedPoseOffset.position.x}
+                                onChange={(event) => {
+                                  updateAttachmentOverride(selectedAttachmentProfile.id, selectedAttachmentProfile.resolvedPoseOffset, {
+                                    position: {
+                                      ...selectedAttachmentProfile.resolvedPoseOffset.position,
+                                      x: Number(event.target.value),
+                                    },
+                                  });
+                                }}
+                              />
+                            </label>
+                            <label>
+                              Py
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={selectedAttachmentProfile.resolvedPoseOffset.position.y}
+                                onChange={(event) => {
+                                  updateAttachmentOverride(selectedAttachmentProfile.id, selectedAttachmentProfile.resolvedPoseOffset, {
+                                    position: {
+                                      ...selectedAttachmentProfile.resolvedPoseOffset.position,
+                                      y: Number(event.target.value),
+                                    },
+                                  });
+                                }}
+                              />
+                            </label>
+                            <label>
+                              Pz
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={selectedAttachmentProfile.resolvedPoseOffset.position.z}
+                                onChange={(event) => {
+                                  updateAttachmentOverride(selectedAttachmentProfile.id, selectedAttachmentProfile.resolvedPoseOffset, {
+                                    position: {
+                                      ...selectedAttachmentProfile.resolvedPoseOffset.position,
+                                      z: Number(event.target.value),
+                                    },
+                                  });
+                                }}
+                              />
+                            </label>
+                            <label>
+                              Rx °
+                              <input
+                                type="number"
+                                step="1"
+                                value={radiansToDegrees(selectedAttachmentProfile.resolvedPoseOffset.rotation.x)}
+                                onChange={(event) => {
+                                  updateAttachmentOverride(selectedAttachmentProfile.id, selectedAttachmentProfile.resolvedPoseOffset, {
+                                    rotation: {
+                                      ...selectedAttachmentProfile.resolvedPoseOffset.rotation,
+                                      x: degreesToRadians(Number(event.target.value)),
+                                    },
+                                  });
+                                }}
+                              />
+                            </label>
+                            <label>
+                              Ry °
+                              <input
+                                type="number"
+                                step="1"
+                                value={radiansToDegrees(selectedAttachmentProfile.resolvedPoseOffset.rotation.y)}
+                                onChange={(event) => {
+                                  updateAttachmentOverride(selectedAttachmentProfile.id, selectedAttachmentProfile.resolvedPoseOffset, {
+                                    rotation: {
+                                      ...selectedAttachmentProfile.resolvedPoseOffset.rotation,
+                                      y: degreesToRadians(Number(event.target.value)),
+                                    },
+                                  });
+                                }}
+                              />
+                            </label>
+                            <label>
+                              Rz °
+                              <input
+                                type="number"
+                                step="1"
+                                value={radiansToDegrees(selectedAttachmentProfile.resolvedPoseOffset.rotation.z)}
+                                onChange={(event) => {
+                                  updateAttachmentOverride(selectedAttachmentProfile.id, selectedAttachmentProfile.resolvedPoseOffset, {
+                                    rotation: {
+                                      ...selectedAttachmentProfile.resolvedPoseOffset.rotation,
+                                      z: degreesToRadians(Number(event.target.value)),
+                                    },
+                                  });
+                                }}
+                              />
+                            </label>
+                            <label>
+                              Scale
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={selectedAttachmentProfile.resolvedPoseOffset.scale}
+                                onChange={(event) => {
+                                  updateAttachmentOverride(selectedAttachmentProfile.id, selectedAttachmentProfile.resolvedPoseOffset, {
+                                    scale: Number(event.target.value),
+                                  });
+                                }}
+                              />
+                            </label>
+                            <div className="attachment-editor-actions">
+                              <span>{selectedAttachmentBinding.socketId}</span>
+                              <button
+                                className="debug-chip-button"
+                                onClick={() => {
+                                  void copySelectedAttachmentOverride();
+                                }}
+                                type="button"
+                              >
+                                Copy JSON
+                              </button>
+                              <button
+                                className="debug-chip-button"
+                                onClick={() => {
+                                  resetAttachmentOverride(selectedAttachmentProfile.id);
+                                }}
+                                type="button"
+                              >
+                                Reset profile
+                              </button>
+                              {attachmentCopyNotice ? <small>{attachmentCopyNotice}</small> : null}
+                            </div>
+                          </div>
+                          <label className="attachment-export-block">
+                            Export
+                            <textarea readOnly value={selectedAttachmentExport} />
+                          </label>
+                        </>
+                      */}
+                    </>
+                  ) : (
+                    <p className="hud-empty">The inspected unit has no visible attachment bindings in the current state.</p>
+                  )}
+                </>
+              ) : (
+                <p className="hud-empty">Select a unit with visible equipment to open the attachment editor.</p>
+              )}
+            </div>
             <div className="debug-readout">
               <span>Cooldowns</span>
               <strong>
@@ -1218,7 +1943,351 @@ function App() {
                   : "No active AI units"}
               </strong>
             </div>
+              </div>
+            ) : null}
+          </>
+        ) : null}
+        {attachmentEditorSession ? (
+          <div className="attachment-editor-mode">
+            <div className="attachment-editor-mode-header hud-card">
+              <div>
+                <p className="hud-kicker">Attachment Editor</p>
+                <h2>
+                  {attachmentEditorDefinition?.name ?? "Unknown unit"}
+                  {attachmentEditorSelectedBinding ? ` · ${equipmentItemsById[attachmentEditorSelectedBinding.itemId].name}` : ""}
+                </h2>
+                <p className="section-note">
+                  Tune authored item offsets for any supported archetype, then save and return to the live combat view.
+                </p>
+              </div>
+              <div className="attachment-editor-mode-actions">
+                <button
+                  className="debug-chip-button"
+                  onClick={() => {
+                    discardAttachmentEditorSession();
+                  }}
+                  type="button"
+                >
+                  Discard
+                </button>
+                <button
+                  className="debug-chip-button is-active"
+                  onClick={() => {
+                    saveAttachmentEditorSession();
+                  }}
+                  type="button"
+                >
+                  Save and return
+                </button>
+              </div>
+            </div>
+            <div className="attachment-editor-mode-grid">
+              <aside className="hud-card attachment-editor-mode-sidebar">
+                <section>
+                  <div className="liveops-header">
+                    <p className="hud-kicker">Units</p>
+                    <strong>{attachmentEditorDefinition?.id ?? "none"}</strong>
+                  </div>
+                  <div className="attachment-unit-grid">
+                    {editorUnitDefinitions.map((unitDefinition) => (
+                      <button
+                        key={`editor-${unitDefinition.id}`}
+                        className={`debug-chip-button${attachmentEditorSession.unitDefinitionId === unitDefinition.id ? " is-active" : ""}`}
+                        onClick={() => {
+                          setAttachmentEditorSession((current) =>
+                            current
+                              ? {
+                                  ...current,
+                                  unitDefinitionId: unitDefinition.id,
+                                }
+                              : current,
+                          );
+                        }}
+                        type="button"
+                      >
+                        {unitDefinition.name}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+                <section className="attachment-editor-mode-section">
+                  <div className="liveops-header">
+                    <p className="hud-kicker">Bindings</p>
+                    <strong>{attachmentEditorContext?.equipmentView.stanceFamily ?? "none"}</strong>
+                  </div>
+                  {attachmentEditorContext?.equipmentView.bindings.length ? (
+                    <div className="attachment-unit-grid">
+                      {attachmentEditorContext.equipmentView.bindings.map((binding) => (
+                        <button
+                          key={`editor-binding-${binding.profileId}`}
+                          className={`debug-chip-button${attachmentEditorSession.selectedProfileId === binding.profileId ? " is-active" : ""}`}
+                          onClick={() => {
+                            setAttachmentEditorSession((current) =>
+                              current
+                                ? {
+                                    ...current,
+                                    selectedProfileId: binding.profileId,
+                                  }
+                                : current,
+                            );
+                          }}
+                          type="button"
+                        >
+                          {equipmentItemsById[binding.itemId].name}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="hud-empty">No visible bindings for this unit in the current state.</p>
+                  )}
+                </section>
+                <section className="attachment-editor-mode-section">
+                  <div className="debug-toggle-grid">
+                    <button
+                      className={`debug-chip-button${showAttachmentSockets ? " is-active" : ""}`}
+                      onClick={() => {
+                        setShowAttachmentSockets((current) => !current);
+                      }}
+                      type="button"
+                    >
+                      Sockets
+                    </button>
+                    <button
+                      className={`debug-chip-button${showAttachmentMarkers ? " is-active" : ""}`}
+                      onClick={() => {
+                        setShowAttachmentMarkers((current) => !current);
+                      }}
+                      type="button"
+                    >
+                      Markers
+                    </button>
+                    <button
+                      className={`debug-chip-button${showAttachmentSkeleton ? " is-active" : ""}`}
+                      onClick={() => {
+                        setShowAttachmentSkeleton((current) => !current);
+                      }}
+                      type="button"
+                    >
+                      Skeleton
+                    </button>
+                    <button
+                      className="debug-chip-button"
+                      onClick={() => {
+                        setAttachmentEditorSession((current) =>
+                          current
+                            ? {
+                                ...current,
+                                draftOverrides: {},
+                              }
+                            : current,
+                        );
+                      }}
+                      type="button"
+                    >
+                      Reset draft
+                    </button>
+                  </div>
+                </section>
+                {attachmentEditorSelectedProfile && attachmentEditorSelectedBinding ? (
+                  <>
+                    <section className="attachment-editor-mode-section">
+                      <div className="attachment-editor-grid">
+                        <label>
+                          Px
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={attachmentEditorSelectedProfile.resolvedPoseOffset.position.x}
+                            onChange={(event) => {
+                              updateAttachmentEditorDraft(
+                                attachmentEditorSelectedProfile.id,
+                                attachmentEditorSelectedProfile.resolvedPoseOffset,
+                                {
+                                  position: {
+                                    ...attachmentEditorSelectedProfile.resolvedPoseOffset.position,
+                                    x: Number(event.target.value),
+                                  },
+                                },
+                              );
+                            }}
+                          />
+                        </label>
+                        <label>
+                          Py
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={attachmentEditorSelectedProfile.resolvedPoseOffset.position.y}
+                            onChange={(event) => {
+                              updateAttachmentEditorDraft(
+                                attachmentEditorSelectedProfile.id,
+                                attachmentEditorSelectedProfile.resolvedPoseOffset,
+                                {
+                                  position: {
+                                    ...attachmentEditorSelectedProfile.resolvedPoseOffset.position,
+                                    y: Number(event.target.value),
+                                  },
+                                },
+                              );
+                            }}
+                          />
+                        </label>
+                        <label>
+                          Pz
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={attachmentEditorSelectedProfile.resolvedPoseOffset.position.z}
+                            onChange={(event) => {
+                              updateAttachmentEditorDraft(
+                                attachmentEditorSelectedProfile.id,
+                                attachmentEditorSelectedProfile.resolvedPoseOffset,
+                                {
+                                  position: {
+                                    ...attachmentEditorSelectedProfile.resolvedPoseOffset.position,
+                                    z: Number(event.target.value),
+                                  },
+                                },
+                              );
+                            }}
+                          />
+                        </label>
+                        <label>
+                          Rx deg
+                          <input
+                            type="number"
+                            step="1"
+                            value={radiansToDegrees(attachmentEditorSelectedProfile.resolvedPoseOffset.rotation.x)}
+                            onChange={(event) => {
+                              updateAttachmentEditorDraft(
+                                attachmentEditorSelectedProfile.id,
+                                attachmentEditorSelectedProfile.resolvedPoseOffset,
+                                {
+                                  rotation: {
+                                    ...attachmentEditorSelectedProfile.resolvedPoseOffset.rotation,
+                                    x: degreesToRadians(Number(event.target.value)),
+                                  },
+                                },
+                              );
+                            }}
+                          />
+                        </label>
+                        <label>
+                          Ry deg
+                          <input
+                            type="number"
+                            step="1"
+                            value={radiansToDegrees(attachmentEditorSelectedProfile.resolvedPoseOffset.rotation.y)}
+                            onChange={(event) => {
+                              updateAttachmentEditorDraft(
+                                attachmentEditorSelectedProfile.id,
+                                attachmentEditorSelectedProfile.resolvedPoseOffset,
+                                {
+                                  rotation: {
+                                    ...attachmentEditorSelectedProfile.resolvedPoseOffset.rotation,
+                                    y: degreesToRadians(Number(event.target.value)),
+                                  },
+                                },
+                              );
+                            }}
+                          />
+                        </label>
+                        <label>
+                          Rz deg
+                          <input
+                            type="number"
+                            step="1"
+                            value={radiansToDegrees(attachmentEditorSelectedProfile.resolvedPoseOffset.rotation.z)}
+                            onChange={(event) => {
+                              updateAttachmentEditorDraft(
+                                attachmentEditorSelectedProfile.id,
+                                attachmentEditorSelectedProfile.resolvedPoseOffset,
+                                {
+                                  rotation: {
+                                    ...attachmentEditorSelectedProfile.resolvedPoseOffset.rotation,
+                                    z: degreesToRadians(Number(event.target.value)),
+                                  },
+                                },
+                              );
+                            }}
+                          />
+                        </label>
+                        <label>
+                          Scale
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={attachmentEditorSelectedProfile.resolvedPoseOffset.scale}
+                            onChange={(event) => {
+                              updateAttachmentEditorDraft(
+                                attachmentEditorSelectedProfile.id,
+                                attachmentEditorSelectedProfile.resolvedPoseOffset,
+                                {
+                                  scale: Number(event.target.value),
+                                },
+                              );
+                            }}
+                          />
+                        </label>
+                        <div className="attachment-editor-actions">
+                          <span>{attachmentEditorSelectedBinding.socketId}</span>
+                          <button
+                            className="debug-chip-button"
+                            onClick={() => {
+                              void copyAttachmentExport(attachmentEditorExport);
+                            }}
+                            type="button"
+                          >
+                            Copy JSON
+                          </button>
+                          <button
+                            className="debug-chip-button"
+                            onClick={() => {
+                              resetAttachmentEditorDraft(attachmentEditorSelectedProfile.id);
+                            }}
+                            type="button"
+                          >
+                            Reset profile
+                          </button>
+                          {attachmentCopyNotice ? <small>{attachmentCopyNotice}</small> : null}
+                        </div>
+                      </div>
+                      <label className="attachment-export-block">
+                        Export
+                        <textarea readOnly value={attachmentEditorExport} />
+                      </label>
+                    </section>
+                  </>
+                ) : null}
+              </aside>
+              <section className="hud-card attachment-editor-mode-stage">
+                <AttachmentEditorViewport
+                  binding={attachmentEditorSelectedBinding}
+                  profile={attachmentEditorSelectedProfile}
+                  presentationId={attachmentEditorContext?.presentationId ?? null}
+                  unitName={attachmentEditorDefinition?.name ?? null}
+                  showSockets={showAttachmentSockets}
+                  showMarkers={showAttachmentMarkers}
+                  showSkeleton={showAttachmentSkeleton}
+                  onPoseChange={(nextPose) => {
+                    if (!attachmentEditorSelectedProfile) {
+                      return;
+                    }
+                    updateAttachmentEditorDraftPose(attachmentEditorSelectedProfile.id, nextPose);
+                  }}
+                />
+              </section>
+            </div>
           </div>
+        ) : null}
+        {!showSetupPanel && !isAttachmentEditorMode ? (
+          <button
+            className="setup-panel-toggle"
+            onClick={() => setShowSetupPanel(true)}
+            type="button"
+          >
+            Open setup
+          </button>
         ) : null}
       </main>
     </div>

@@ -2,6 +2,7 @@ import { assetUrls } from "@/game/assets";
 import type {
   BehaviorProfileDefinition,
   FactionDefinition,
+  EquipmentDefinition,
   OrderDefinition,
   PrototypeCatalog,
   RewardDefinition,
@@ -30,18 +31,148 @@ const factions: FactionDefinition[] = [
   },
 ];
 
+const equipment: EquipmentDefinition[] = [
+  {
+    id: "leader_sword",
+    name: "Captain Sword",
+    description: "Balanced short sword for the captain's main hand.",
+    slotId: "main_hand",
+    asset: {
+      modelUrl: assetUrls.weapons.sword,
+    },
+    attachment: {
+      // Sword blade extends along +Y; hand bone Y goes along fingers.
+      // Zero rotation = blade extends naturally from the grip.
+      boneCandidates: ["mixamorigRightHand", "RightHand"],
+      position: { x: 0, y: 0.04, z: 0 },
+      rotation: { x: 0, y: 0, z: 0 },
+      scale: 0.7,
+    },
+  },
+  {
+    id: "leader_shield",
+    name: "Captain Shield",
+    description: "Round shield for the captain's off hand.",
+    slotId: "off_hand",
+    asset: {
+      modelUrl: assetUrls.weapons.shieldRound,
+    },
+    attachment: {
+      // Shield is an XY disc with face along Z.
+      // On LeftForeArm, zero rotation lays the shield flat along the arm
+      // with the face pointing outward in the bone's Z direction.
+      boneCandidates: ["mixamorigLeftForeArm", "LeftForeArm"],
+      position: { x: 0, y: 0.1, z: 0 },
+      rotation: { x: 0, y: 0, z: 0 },
+      scale: 0.65,
+    },
+  },
+  {
+    id: "ranger_bow",
+    name: "Ranger Longbow",
+    description: "String-equipped longbow for the ranger's main hand.",
+    slotId: "main_hand",
+    asset: {
+      modelUrl: assetUrls.weapons.bowString,
+    },
+    attachment: {
+      // Bow extends along +Y; hand bone Y goes along fingers.
+      // Zero rotation = bow extends naturally from the hand.
+      boneCandidates: ["mixamorigLeftHand", "LeftHand"],
+      position: { x: 0, y: 0.04, z: 0 },
+      rotation: { x: 0, y: 0, z: 0 },
+      scale: 0.7,
+    },
+  },
+  {
+    id: "vanguard_halberd_equip",
+    name: "Vanguard Halberd",
+    description: "Reach weapon used by the vanguard companion.",
+    slotId: "main_hand",
+    asset: {
+      modelUrl: assetUrls.weapons.halberd,
+    },
+    attachment: {
+      boneCandidates: ["mixamorigRightHand", "RightHand"],
+      position: { x: 0, y: 0.05, z: 0 },
+      rotation: { x: 0, y: 0, z: 0 },
+      scale: 0.74,
+    },
+  },
+  {
+    id: "mender_staff_equip",
+    name: "Mender Staff",
+    description: "Support staff carried by the mender companion.",
+    slotId: "main_hand",
+    asset: {
+      modelUrl: assetUrls.weapons.staff,
+    },
+    attachment: {
+      boneCandidates: ["mixamorigRightHand", "RightHand"],
+      position: { x: 0, y: 0.05, z: 0 },
+      rotation: { x: 0, y: 0, z: 0 },
+      scale: 0.72,
+    },
+  },
+  {
+    id: "hexcaster_staff_equip",
+    name: "Hexcaster Staff",
+    description: "Arcane staff carried by ranged enemy casters.",
+    slotId: "main_hand",
+    asset: {
+      modelUrl: assetUrls.weapons.staffAlt,
+    },
+    attachment: {
+      boneCandidates: ["mixamorigRightHand", "RightHand"],
+      position: { x: 0, y: 0.05, z: 0 },
+      rotation: { x: 0, y: 0, z: 0 },
+      scale: 0.72,
+    },
+  },
+  {
+    id: "raider_axe_equip",
+    name: "Raider Battle Axe",
+    description: "Brutal axe wielded by raider chasers.",
+    slotId: "main_hand",
+    asset: {
+      modelUrl: assetUrls.weapons.axe,
+    },
+    attachment: {
+      boneCandidates: ["mixamorigRightHand", "RightHand"],
+      position: { x: 0, y: 0.04, z: 0 },
+      rotation: { x: 0, y: 0, z: 0 },
+      scale: 0.7,
+    },
+  },
+  {
+    id: "bulwark_maul_equip",
+    name: "Disruptor Maul",
+    description: "Massive maul for the bulwark disruptor.",
+    slotId: "main_hand",
+    asset: {
+      modelUrl: assetUrls.weapons.maul,
+    },
+    attachment: {
+      boneCandidates: ["mixamorigRightHand", "RightHand"],
+      position: { x: 0, y: 0.04, z: 0 },
+      rotation: { x: 0, y: 0, z: 0 },
+      scale: 0.75,
+    },
+  },
+];
+
 const weapons: WeaponDefinition[] = [
   {
-    id: "captain_saber",
-    name: "Officer Saber",
+    id: "captain_swordshield",
+    name: "Sword and Shield",
     kind: "melee",
-    description: "Fast, dependable saber slashes for the leader.",
+    description: "Fast, dependable sword-and-shield pressure for the leader.",
     range: 2.6,
     cooldownMs: 900,
     baseDamage: 16,
     preferredDistance: 2.1,
     asset: {
-      modelUrl: assetUrls.weapons.saber,
+      modelUrl: assetUrls.weapons.sword,
       sfxUrl: assetUrls.audio.hitBlade,
       vfxUrl: assetUrls.vfx.hitSlash,
     },
@@ -72,7 +203,7 @@ const weapons: WeaponDefinition[] = [
     projectileSpeed: 18,
     preferredDistance: 10,
     asset: {
-      modelUrl: assetUrls.weapons.bow,
+      modelUrl: assetUrls.weapons.bowString,
       sfxUrl: assetUrls.audio.hitRanged,
       vfxUrl: assetUrls.vfx.spellProjectile,
     },
@@ -544,9 +675,9 @@ const rewards: RewardDefinition[] = [
   {
     id: "honed_edges",
     name: "Honed Edges",
-    description: "The captain's saber cadence improves.",
+    description: "The captain's sword-and-shield cadence improves.",
     rarity: "common",
-    iconUrl: assetUrls.ui.rewardAxe,
+    iconUrl: assetUrls.ui.rewardSword,
     effects: [{ type: "stat_bonus", target: "leader", stat: "attackPower", value: 5 }],
   },
 ];
@@ -558,7 +689,7 @@ const units: UnitDefinition[] = [
     faction: "leader_party",
     controller: "player",
     presentationId: "leader",
-    summary: "Third-person leader with a flexible five-spell book and saber basics.",
+    summary: "Third-person leader with a flexible five-spell book and sword-and-shield basics.",
     group: "all",
     stats: {
       maxHp: 125,
@@ -569,11 +700,14 @@ const units: UnitDefinition[] = [
       defense: 6,
       revivePower: 12,
     },
-    weaponId: "captain_saber",
+    weaponId: "captain_swordshield",
+    equipmentLoadout: {
+      main_hand: "leader_sword",
+      off_hand: "leader_shield",
+    },
     spellbookIds: ["arcane_lance", "commanders_mark", "bulwark_pulse", "field_mend", "steam_snare"],
     defaultLoadoutIds: ["commanders_mark", "bulwark_pulse", "steam_snare"],
     behaviorProfileId: "aggressive",
-    modelUrl: assetUrls.characters.leader,
     spawnRadius: 0.55,
     reviveable: false,
     xpValue: 0,
@@ -583,7 +717,7 @@ const units: UnitDefinition[] = [
     name: "Vanguard",
     faction: "leader_party",
     controller: "ai",
-    presentationId: "companion_melee",
+    presentationId: "companion_paladin",
     recruitmentLabel: "Recruit Vanguard",
     summary: "Frontline bruiser that taunts and anchors the formation.",
     group: "frontline",
@@ -597,10 +731,10 @@ const units: UnitDefinition[] = [
       revivePower: 8,
     },
     weaponId: "vanguard_halberd",
+    equipmentLoadout: { main_hand: "vanguard_halberd_equip" },
     spellbookIds: ["guardian_shout", "bulwark_pulse"],
     defaultLoadoutIds: ["guardian_shout", "bulwark_pulse"],
     behaviorProfileId: "defensive",
-    modelUrl: assetUrls.characters.leader,
     spawnRadius: 0.58,
     reviveable: true,
     xpValue: 0,
@@ -624,10 +758,10 @@ const units: UnitDefinition[] = [
       revivePower: 7,
     },
     weaponId: "ranger_longbow",
+    equipmentLoadout: { main_hand: "ranger_bow" },
     spellbookIds: ["volley_burst", "commanders_mark"],
     defaultLoadoutIds: ["volley_burst", "commanders_mark"],
     behaviorProfileId: "aggressive",
-    modelUrl: assetUrls.characters.companionArcher,
     spawnRadius: 0.5,
     reviveable: true,
     xpValue: 0,
@@ -651,10 +785,10 @@ const units: UnitDefinition[] = [
       revivePower: 15,
     },
     weaponId: "mender_staff",
+    equipmentLoadout: { main_hand: "mender_staff_equip" },
     spellbookIds: ["field_mend", "bulwark_pulse", "arcane_lance"],
     defaultLoadoutIds: ["field_mend", "bulwark_pulse", "arcane_lance"],
     behaviorProfileId: "support",
-    modelUrl: assetUrls.characters.companionArcher,
     spawnRadius: 0.48,
     reviveable: true,
     xpValue: 0,
@@ -677,10 +811,10 @@ const units: UnitDefinition[] = [
       revivePower: 0,
     },
     weaponId: "raider_axe",
+    equipmentLoadout: { main_hand: "raider_axe_equip" },
     spellbookIds: ["commanders_mark"],
     defaultLoadoutIds: ["commanders_mark"],
     behaviorProfileId: "aggressive",
-    modelUrl: assetUrls.characters.enemyAxe,
     spawnRadius: 0.52,
     reviveable: false,
     xpValue: 28,
@@ -703,10 +837,10 @@ const units: UnitDefinition[] = [
       revivePower: 0,
     },
     weaponId: "hexcaster_staff",
+    equipmentLoadout: { main_hand: "hexcaster_staff_equip" },
     spellbookIds: ["ember_bolt", "steam_snare"],
     defaultLoadoutIds: ["ember_bolt", "steam_snare"],
     behaviorProfileId: "aggressive",
-    modelUrl: assetUrls.characters.enemyAxe,
     spawnRadius: 0.5,
     reviveable: false,
     xpValue: 32,
@@ -729,10 +863,10 @@ const units: UnitDefinition[] = [
       revivePower: 0,
     },
     weaponId: "bulwark_maul",
+    equipmentLoadout: { main_hand: "bulwark_maul_equip" },
     spellbookIds: ["shockwave_slam", "guardian_shout"],
     defaultLoadoutIds: ["shockwave_slam", "guardian_shout"],
     behaviorProfileId: "defensive",
-    modelUrl: assetUrls.characters.enemyAxe,
     spawnRadius: 0.62,
     reviveable: false,
     xpValue: 42,
@@ -768,6 +902,7 @@ const loadouts: SpellLoadoutDefinition[] = [
 
 export const prototypeCatalog: PrototypeCatalog = {
   factions: byId(factions),
+  equipment: byId(equipment),
   weapons: byId(weapons),
   spells: byId(spells),
   statuses: byId(statuses),
@@ -785,6 +920,7 @@ export const catalogSummary = {
   statusCount: statuses.length,
   orderCount: orders.length,
   rewardCount: rewards.length,
+  equipmentCount: equipment.length,
   behaviorProfileCount: behaviorProfiles.length,
   unitCount: units.length,
   leaderSpellbookSlots: prototypeCatalog.loadouts.leader_spellbook.slotCount,

@@ -9,14 +9,14 @@ export type UnitArchetypeId =
   | "enemy_tank_disruptor";
 export type CharacterPresentationId =
   | "leader"
-  | "companion_melee"
+  | "companion_paladin"
   | "companion_ranged"
   | "companion_support"
   | "enemy_melee"
   | "enemy_ranged"
   | "enemy_tank";
 export type WeaponId =
-  | "captain_saber"
+  | "captain_swordshield"
   | "vanguard_halberd"
   | "ranger_longbow"
   | "mender_staff"
@@ -94,11 +94,38 @@ export interface StatBlock {
 
 export interface AssetBinding {
   modelUrl?: string;
-  weaponUrl?: string;
   iconUrl?: string;
   panelUrl?: string;
   vfxUrl?: string;
   sfxUrl?: string;
+}
+
+export type EquipmentSlotId = "main_hand" | "off_hand";
+
+export interface EquipmentAttachmentDefinition {
+  boneCandidates: string[];
+  position: Vec3;
+  rotation: Vec3;
+  scale: number;
+}
+
+export type EquipmentId =
+  | "leader_sword"
+  | "leader_shield"
+  | "ranger_bow"
+  | "vanguard_halberd_equip"
+  | "mender_staff_equip"
+  | "hexcaster_staff_equip"
+  | "raider_axe_equip"
+  | "bulwark_maul_equip";
+
+export interface EquipmentDefinition {
+  id: EquipmentId;
+  name: string;
+  description: string;
+  slotId: EquipmentSlotId;
+  asset: AssetBinding;
+  attachment: EquipmentAttachmentDefinition;
 }
 
 export interface FactionDefinition {
@@ -119,6 +146,7 @@ export interface WeaponDefinition {
   projectileSpeed?: number;
   preferredDistance: number;
   asset: AssetBinding;
+  visualAttachment?: EquipmentAttachmentDefinition;
 }
 
 export interface EffectDefinition {
@@ -224,10 +252,10 @@ export interface UnitDefinition {
   group: GroupId;
   stats: StatBlock;
   weaponId: WeaponId;
+  equipmentLoadout: Partial<Record<EquipmentSlotId, EquipmentId>>;
   spellbookIds: SpellId[];
   defaultLoadoutIds: SpellId[];
   behaviorProfileId: BehaviorProfileId;
-  modelUrl: string;
   spawnRadius: number;
   reviveable: boolean;
   xpValue: number;
@@ -235,6 +263,7 @@ export interface UnitDefinition {
 
 export interface PrototypeCatalog {
   factions: Record<FactionId, FactionDefinition>;
+  equipment: Record<EquipmentId, EquipmentDefinition>;
   weapons: Record<WeaponId, WeaponDefinition>;
   spells: Record<SpellId, SpellDefinition>;
   statuses: Record<StatusId, StatusDefinition>;

@@ -8,6 +8,19 @@ export const arenaDefinition: ArenaDefinition = {
     depth: 28,
   },
   groundModelUrl: assetUrls.environment.ground,
+  supportSurfaces: [
+    {
+      id: "arena_floor",
+      kind: "flat",
+      position: vec3(0, 0, 0),
+      rotationY: 0,
+      size: {
+        x: 34,
+        z: 28,
+      },
+      supportY: 0,
+    },
+  ],
   playerStart: vec3(0, 0, 8),
   recruitStaging: [vec3(-4, 0, 12), vec3(0, 0, 12), vec3(4, 0, 12)],
   companionSlots: [vec3(-2.5, 0, 9.5), vec3(0, 0, 10), vec3(2.5, 0, 9.5)],
