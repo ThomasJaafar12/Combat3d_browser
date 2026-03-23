@@ -5,6 +5,7 @@ import type { CombatSnapshot } from "@/game/runtime";
 
 interface CombatHUDProps {
   snapshot: CombatSnapshot;
+  activeTab: "combat" | "setup" | "leader" | "companions" | "target" | "debug" | "attachment";
   armedSpellSlot: number | null;
   activeOrderTargeting: GroundTargetOrderId | null;
   onSpellSlotClick: (slotIndex: number) => void;
@@ -57,6 +58,7 @@ const makeEquipmentLabel = (slotId: string) => {
 
 export function CombatHUD({
   snapshot,
+  activeTab,
   armedSpellSlot,
   activeOrderTargeting,
   onSpellSlotClick,
@@ -77,11 +79,12 @@ export function CombatHUD({
     ? `Click ground to place ${prototypeCatalog.orders[activeOrderTargeting].name.toLowerCase()}.`
     : armedSpellSlot !== null
       ? `Spell armed: ${prototypeCatalog.spells[snapshot.activeLoadoutIds[armedSpellSlot]].name}.`
-      : "E toggles equipment. Q/H/T place area orders. 1-3 arm spells. R revives nearby allies.";
+      : "Shift sprints. C toggles aim mode. E toggles equipment. Q/H/T place area orders. 1-3 arm spells. R revives nearby allies.";
 
   return (
     <>
       <div className="combat-hud combat-hud-top">
+        {activeTab === "leader" && (
         <section className="hud-card leader-hud">
           <div className="hud-header">
             <div>
@@ -150,7 +153,9 @@ export function CombatHUD({
             </div>
           </div>
         </section>
+        )}
 
+        {activeTab === "target" && (
         <section className="hud-card target-hud">
           <div className="hud-header">
             <div>
@@ -193,9 +198,11 @@ export function CombatHUD({
             <p className="hud-empty">Select an enemy to inspect its health and status effects.</p>
           )}
         </section>
+        )}
       </div>
 
       <div className="combat-hud combat-hud-left">
+        {activeTab === "companions" && (
         <section className="hud-card companion-panel">
           <div className="hud-header">
             <div>
@@ -224,6 +231,7 @@ export function CombatHUD({
             )}
           </div>
         </section>
+        )}
       </div>
 
       <div className="combat-hud combat-hud-bottom">

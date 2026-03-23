@@ -3,28 +3,19 @@ import * as THREE from "three";
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { clone } from "three/examples/jsm/utils/SkeletonUtils.js";
+import { AnimationNormalizer } from "@/game/animation/AnimationNormalizer";
+import { ClipRegistry } from "@/game/animation/ClipRegistry";
+import type {
+  CharacterClipDescriptor,
+  CharacterClipRegistry,
+  ClipRegistration,
+  NormalizedClipReport,
+  PresentationAnimationId,
+} from "@/game/animation/types";
 import { assetUrls } from "@/game/assets";
 import { prototypeCatalog } from "@/game/content";
 import type { CharacterPresentationId } from "@/game/defs";
 import { arenaDefinition } from "@/game/environment/arena";
-
-type PresentationAnimationId =
-  | "idle"
-  | "run"
-  | "runLeft"
-  | "runRight"
-  | "runBack"
-  | "walkLeft"
-  | "walkRight"
-  | "walkBack"
-  | "attack"
-  | "cast"
-  | "hit"
-  | "death"
-  | "block"
-  | "draw"
-  | "release"
-  | "guard";
 
 export type EnvironmentModelId =
   | "ground"
@@ -47,6 +38,7 @@ interface CharacterBundle {
   scene: THREE.Group;
   size: THREE.Vector3;
   animations: Partial<Record<PresentationAnimationId, THREE.AnimationClip>>;
+  clipRegistry: CharacterClipRegistry;
   targetHeight: number;
   rotationOffsetY: number;
   tint: string | null;
@@ -55,6 +47,8 @@ interface CharacterBundle {
 export interface CharacterModelInstance {
   scene: THREE.Group;
   animations: Partial<Record<PresentationAnimationId, THREE.AnimationClip>>;
+  clipRegistry: CharacterClipRegistry;
+  normalizationDiagnostics: Partial<Record<PresentationAnimationId, NormalizedClipReport>>;
   rotationOffsetY: number;
 }
 
@@ -67,6 +61,8 @@ const characterPromiseCache = new Map<CharacterPresentationId, Promise<Character
 
 const sharedFbxLoader = new FBXLoader();
 const sharedLoadingManager = new THREE.LoadingManager();
+const animationNormalizer = new AnimationNormalizer();
+const characterClipRegistry = new ClipRegistry();
 
 const environmentMaterialProxy = (() => {
   const svgByKind = {
@@ -384,41 +380,57 @@ const loadRawModel = (url: string) => {
   return loaderPromise;
 };
 
-const loadAnimationClip = async (url: string, fallbackName: PresentationAnimationId) => {
-  const asset = await loadRawModel(url);
+const buildClipRegistration = (animationId: PresentationAnimationId, url: string): ClipRegistration => {
+  switch (animationId) {
+    case "idle":
+      return { id: animationId, url, tag: "idle", direction: "inPlace", loopMode: "loop", normalizationPolicy: "codeDrivenPresentation" };
+    case "run":
+      return { id: animationId, url, tag: "locomotion", direction: "forward", locomotionMode: "move", loopMode: "loop", normalizationPolicy: "codeDrivenPresentation" };
+    case "runLeft":
+      return { id: animationId, url, tag: "locomotion", direction: "left", locomotionMode: "strafe", loopMode: "loop", normalizationPolicy: "codeDrivenPresentation" };
+    case "runRight":
+      return { id: animationId, url, tag: "locomotion", direction: "right", locomotionMode: "strafe", loopMode: "loop", normalizationPolicy: "codeDrivenPresentation" };
+    case "runBack":
+      return { id: animationId, url, tag: "locomotion", direction: "backward", locomotionMode: "backpedal", loopMode: "loop", normalizationPolicy: "codeDrivenPresentation" };
+    case "walkLeft":
+      return { id: animationId, url, tag: "locomotion", direction: "left", locomotionMode: "strafe", loopMode: "loop", normalizationPolicy: "codeDrivenPresentation" };
+    case "walkRight":
+      return { id: animationId, url, tag: "locomotion", direction: "right", locomotionMode: "strafe", loopMode: "loop", normalizationPolicy: "codeDrivenPresentation" };
+    case "walkBack":
+      return { id: animationId, url, tag: "locomotion", direction: "backward", locomotionMode: "backpedal", loopMode: "loop", normalizationPolicy: "codeDrivenPresentation" };
+    case "attack":
+      return { id: animationId, url, tag: "attack", loopMode: "once", normalizationPolicy: "codeDrivenPresentation" };
+    case "cast":
+      return { id: animationId, url, tag: "cast", loopMode: "once", normalizationPolicy: "codeDrivenPresentation" };
+    case "hit":
+      return { id: animationId, url, tag: "hit", loopMode: "once", normalizationPolicy: "codeDrivenPresentation" };
+    case "death":
+      return { id: animationId, url, tag: "death", loopMode: "once", normalizationPolicy: "codeDrivenPresentation" };
+    case "block":
+      return { id: animationId, url, tag: "block", loopMode: "loop", normalizationPolicy: "codeDrivenPresentation" };
+    case "draw":
+      return { id: animationId, url, tag: "draw", loopMode: "once", normalizationPolicy: "codeDrivenPresentation" };
+    case "release":
+      return { id: animationId, url, tag: "release", loopMode: "once", normalizationPolicy: "codeDrivenPresentation" };
+    case "guard":
+      return { id: animationId, url, tag: "guard", loopMode: "loop", normalizationPolicy: "codeDrivenPresentation" };
+    default:
+      return { id: animationId, url, tag: "idle", loopMode: "loop", normalizationPolicy: "codeDrivenPresentation" };
+  }
+};
+
+const loadAnimationClipDescriptor = async (registration: ClipRegistration): Promise<CharacterClipDescriptor | null> => {
+  const asset = await loadRawModel(registration.url);
   const clip = asset.animations[0];
   if (!clip) {
     return null;
   }
-  const normalizedClip = clip.clone().resetDuration().trim();
-  normalizedClip.tracks = normalizedClip.tracks.map((track) => {
-    if (!(track instanceof THREE.VectorKeyframeTrack) || !track.name.toLowerCase().endsWith(".position")) {
-      return track;
-    }
-
-    const normalizedName = track.name.toLowerCase();
-    const isRootMotionTrack =
-      normalizedName.includes("hips.position") ||
-      normalizedName.includes("root.position") ||
-      normalizedName.includes("armature.position");
-    const anchoredValues = track.values.slice();
-
-    if (!isRootMotionTrack || anchoredValues.length < 3) {
-      return track;
-    }
-
-    const anchorX = anchoredValues[0];
-    const anchorZ = anchoredValues[2];
-    for (let index = 0; index < anchoredValues.length; index += 3) {
-      anchoredValues[index] = anchorX;
-      anchoredValues[index + 2] = anchorZ;
-    }
-
-    return new THREE.VectorKeyframeTrack(track.name, track.times, anchoredValues, track.getInterpolation());
-  });
-  normalizedClip.optimize();
-  normalizedClip.name = fallbackName;
-  return normalizedClip;
+  const normalized = animationNormalizer.normalizeClip(registration.id, clip, registration.normalizationPolicy);
+  return {
+    registration,
+    clip: normalized.clip,
+    report: normalized.report,
+  };
 };
 
 export const loadCharacterModel = async (presentationId: CharacterPresentationId) => {
@@ -433,22 +445,26 @@ export const loadCharacterModel = async (presentationId: CharacterPresentationId
     Promise.all(
       Object.entries(config.animationUrls).map(async ([animationId, animationUrl]) => {
         if (!animationUrl) {
-          return [animationId, null] as const;
+          return null;
         }
-        return [animationId, await loadAnimationClip(animationUrl, animationId as PresentationAnimationId)] as const;
+        return loadAnimationClipDescriptor(buildClipRegistration(animationId as PresentationAnimationId, animationUrl));
       }),
     ),
-  ]).then(([modelAsset, animationEntries]) => ({
-    id: presentationId,
-    scene: modelAsset.scene,
-    size: modelAsset.size,
-    animations: Object.fromEntries(
-      animationEntries.filter((entry): entry is [string, THREE.AnimationClip] => !!entry[1]),
-    ) as CharacterBundle["animations"],
-    targetHeight: config.targetHeight,
-    rotationOffsetY: config.rotationOffsetY,
-    tint: config.tint,
-  }));
+  ]).then(([modelAsset, descriptorEntries]) => {
+    const descriptors = descriptorEntries.filter((entry): entry is CharacterClipDescriptor => !!entry);
+    return {
+      id: presentationId,
+      scene: modelAsset.scene,
+      size: modelAsset.size,
+      animations: Object.fromEntries(
+        descriptors.map((descriptor) => [descriptor.registration.id, descriptor.clip]),
+      ) as CharacterBundle["animations"],
+      clipRegistry: characterClipRegistry.registerClipSet(presentationId, descriptors),
+      targetHeight: config.targetHeight,
+      rotationOffsetY: config.rotationOffsetY,
+      tint: config.tint,
+    };
+  });
 
   characterPromiseCache.set(presentationId, bundlePromise);
   return bundlePromise;
@@ -467,6 +483,8 @@ const cloneCharacterBundle = (bundle: CharacterBundle): CharacterModelInstance =
   return {
     scene,
     animations: bundle.animations,
+    clipRegistry: bundle.clipRegistry,
+    normalizationDiagnostics: bundle.clipRegistry.diagnostics,
     rotationOffsetY: bundle.rotationOffsetY,
   };
 };

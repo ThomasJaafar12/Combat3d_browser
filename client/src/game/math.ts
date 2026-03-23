@@ -12,6 +12,8 @@ export const scaleVec3 = (value: Vec3, scalar: number): Vec3 =>
 export const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
 
+export const clamp01 = (value: number) => clamp(value, 0, 1);
+
 export const length2D = (value: Vec3) => Math.hypot(value.x, value.z);
 
 export const distance2D = (a: Vec3, b: Vec3) => Math.hypot(a.x - b.x, a.z - b.z);
@@ -30,6 +32,35 @@ export const lerp = (from: number, to: number, alpha: number) => from + (to - fr
 export const yawToDirection = (yaw: number): Vec3 => vec3(Math.sin(yaw), 0, Math.cos(yaw));
 
 export const directionToYaw = (direction: Vec3) => Math.atan2(direction.x, direction.z);
+
+export const rotateVectorByYaw = (value: Vec3, yaw: number): Vec3 => {
+  const cos = Math.cos(yaw);
+  const sin = Math.sin(yaw);
+  return vec3(value.x * cos + value.z * sin, value.y, value.z * cos - value.x * sin);
+};
+
+export const inverseRotateVectorByYaw = (value: Vec3, yaw: number): Vec3 => rotateVectorByYaw(value, -yaw);
+
+export const normalizeAngle = (angle: number) => {
+  let normalized = angle;
+  while (normalized <= -Math.PI) {
+    normalized += Math.PI * 2;
+  }
+  while (normalized > Math.PI) {
+    normalized -= Math.PI * 2;
+  }
+  return normalized;
+};
+
+export const shortestAngleDelta = (from: number, to: number) => normalizeAngle(to - from);
+
+export const rotateTowardAngle = (current: number, target: number, maxDelta: number) => {
+  const delta = shortestAngleDelta(current, target);
+  if (Math.abs(delta) <= maxDelta) {
+    return normalizeAngle(target);
+  }
+  return normalizeAngle(current + Math.sign(delta) * maxDelta);
+};
 
 export const withY = (value: Vec3, y: number): Vec3 => vec3(value.x, y, value.z);
 
