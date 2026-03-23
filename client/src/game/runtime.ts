@@ -10,6 +10,11 @@ import type {
   Vec3,
   WeaponId,
 } from "@/game/defs";
+import type {
+  RuntimeInputTelemetry,
+  RuntimeLocomotionTelemetry,
+  RuntimePresentationTelemetry,
+} from "@/game/locomotion/types";
 import type { EquipmentState } from "@/game/equipment/schema";
 
 export type CombatPhase = "loadout" | "battle" | "victory" | "reward" | "defeat";
@@ -70,10 +75,14 @@ export interface RuntimeUnit {
   facingYaw: number;
   velocity: Vec3;
   moveIntent: Vec3;
+  inputTelemetry: RuntimeInputTelemetry;
+  locomotion: RuntimeLocomotionTelemetry;
+  presentation: RuntimePresentationTelemetry;
   currentHp: number;
   currentResource: number;
   weaponId: WeaponId;
   equipmentState: EquipmentState;
+  equipmentRevision: number;
   loadoutSpellIds: SpellId[];
   spellbookIds: SpellId[];
   spellCooldowns: Partial<Record<SpellId, number>>;
@@ -219,6 +228,47 @@ export interface CombatSnapshot {
   totalXp: number;
   level: number;
   waveNumber: number;
+  arena: ArenaDefinition;
+  debugFlags: DebugFlagsState;
+}
+
+export interface CombatRenderStatus {
+  id: StatusId;
+  remainingMs: number;
+}
+
+export interface CombatRenderUnit {
+  id: string;
+  definitionId: UnitArchetypeId;
+  name: string;
+  faction: "leader_party" | "enemy";
+  controller: ControllerType;
+  position: Vec3;
+  facingYaw: number;
+  velocity: Vec3;
+  currentHp: number;
+  weaponId: WeaponId;
+  equipmentState: EquipmentState;
+  equipmentRevision: number;
+  basicCooldownMs: number;
+  locomotion: RuntimeLocomotionTelemetry;
+  presentation: RuntimePresentationTelemetry;
+  statuses: CombatRenderStatus[];
+  aiStateLabel: string;
+  isCasting: boolean;
+  isDowned: boolean;
+  isDead: boolean;
+}
+
+export interface CombatRenderSnapshot {
+  phase: CombatPhase;
+  timeMs: number;
+  leaderId: string;
+  selectedTargetId: string | null;
+  units: CombatRenderUnit[];
+  projectiles: RuntimeProjectile[];
+  zones: RuntimeZone[];
+  floatingTexts: FloatingText[];
   arena: ArenaDefinition;
   debugFlags: DebugFlagsState;
 }

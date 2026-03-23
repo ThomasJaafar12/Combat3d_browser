@@ -1,10 +1,11 @@
 import { Canvas } from "@react-three/fiber";
-import { startTransition, useDeferredValue, useEffect, useRef, useState } from "react";
-import { AttachmentEditorViewport } from "@/components/AttachmentEditorViewport";
+import { Suspense, lazy, startTransition, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import {
   CombatScene,
+  type AnimationDebugReport,
   type AttachmentDebugOptions,
   type GroundPreviewState,
+  type LocomotionSceneDebugOptions,
   type ScenePerformanceSample,
 } from "@/components/CombatScene";
 import { CombatHUD } from "@/components/HUD/CombatHUD";
@@ -27,7 +28,26 @@ import {
 import { normalize2D, subVec3, vec3, yawToDirection } from "@/game/math";
 import type { CombatSnapshot } from "@/game/runtime";
 
+const AttachmentEditorViewport = lazy(async () => {
+  const module = await import("@/components/AttachmentEditorViewport");
+  return { default: module.AttachmentEditorViewport };
+});
+
 type MovementDirection = "forward" | "backward" | "left" | "right";
+type LocomotionDebugState = LocomotionSceneDebugOptions & {
+  disableFacingInterpolation: boolean;
+  disableCameraRelativeMovement: boolean;
+};
+
+const cycleVectorMode = (current: LocomotionSceneDebugOptions["vectorMode"]): LocomotionSceneDebugOptions["vectorMode"] => {
+  if (current === "off") {
+    return "selected";
+  }
+  if (current === "selected") {
+    return "all";
+  }
+  return "off";
+};
 
 const resolveMovementDirection = (event: KeyboardEvent): MovementDirection | null => {
   const key = event.key.toLowerCase();
@@ -134,6 +154,26 @@ const summarizeSnapshot = (snapshot: CombatSnapshot) => {
             x: Math.round(leader.moveIntent.x * 10) / 10,
             z: Math.round(leader.moveIntent.z * 10) / 10,
           },
+          locomotion: {
+            mode: leader.locomotion.locomotionMode,
+            facingMode: leader.locomotion.facingMode,
+            desiredSpeed: Math.round(leader.locomotion.desiredSpeed * 10) / 10,
+            speedNormalized: Math.round(leader.locomotion.speedNormalized * 100) / 100,
+            isAiming: leader.locomotion.isAiming,
+            isSprinting: leader.locomotion.isSprinting,
+            currentYaw: Math.round(leader.locomotion.currentYaw * 100) / 100,
+            targetYaw: Math.round(leader.locomotion.targetYaw * 100) / 100,
+            yawDelta: Math.round(leader.locomotion.yawDelta * 100) / 100,
+            desiredLocalMoveDirection: {
+              x: Math.round(leader.locomotion.desiredLocalMoveDirection.x * 10) / 10,
+              z: Math.round(leader.locomotion.desiredLocalMoveDirection.z * 10) / 10,
+            },
+          },
+          inputTelemetry: {
+            rawInputX: Math.round(leader.inputTelemetry.rawInputX * 10) / 10,
+            rawInputY: Math.round(leader.inputTelemetry.rawInputY * 10) / 10,
+            desiredMagnitude: Math.round(leader.inputTelemetry.desiredMagnitude * 100) / 100,
+          },
           stanceFamily: resolveStanceFamily(leader.equipmentState, prototypeCatalog.weapons[leader.weaponId].kind),
           equipment: {
             active: Object.fromEntries(
@@ -189,7 +229,8 @@ function App() {
   const authority = authorityRef.current;
   const audioRef = useRef(createCombatAudioSystem());
   const viewportRef = useRef<HTMLElement | null>(null);
-  const [showSetupPanel, setShowSetupPanel] = useState(true);
+  type ActiveTab = "combat" | "setup" | "leader" | "companions" | "target" | "debug" | "attachment";
+  const [activeTab, setActiveTab] = useState<ActiveTab>("setup");
   const [snapshot, setSnapshot] = useState(() => authority.getSnapshot());
   const snapshotRef = useRef(snapshot);
   const deferredSnapshot = useDeferredValue(snapshot);
@@ -212,20 +253,37 @@ function App() {
   const [orderScope, setOrderScope] = useState<"all" | "frontline" | "backline" | "support" | "alpha" | "bravo">("all");
   const [attachmentOverrides, setAttachmentOverrides] = useState<AttachmentProfileOverrideMap>(() => readAttachmentOverrides());
   const [attachmentReports, setAttachmentReports] = useState<Record<string, AttachmentDebugReport | null>>({});
+  const [animationReports, setAnimationReports] = useState<Record<string, AnimationDebugReport | null>>({});
   const [attachmentInspectUnitId, setAttachmentInspectUnitId] = useState<string | null>(null);
   const [selectedAttachmentProfileId, setSelectedAttachmentProfileId] = useState<string | null>(null);
-  const [showAttachmentSockets, setShowAttachmentSockets] = useState(true);
+  const [showAttachmentSockets, setShowAttachmentSockets] = useState(false);
   const [showAttachmentMarkers, setShowAttachmentMarkers] = useState(true);
   const [showAttachmentSkeleton, setShowAttachmentSkeleton] = useState(false);
   const [attachmentCopyNotice, setAttachmentCopyNotice] = useState<string | null>(null);
   const [attachmentEditorSession, setAttachmentEditorSession] = useState<AttachmentEditorSession | null>(null);
+  const [aimModeEnabled, setAimModeEnabled] = useState(false);
+  const aimModeRef = useRef(false);
+  const [locomotionDebug, setLocomotionDebug] = useState<LocomotionDebugState>({
+    vectorMode: "off",
+    disableAnimation: false,
+    disableAttachments: false,
+    disableOverlays: false,
+    collectAnimationReports: false,
+    disableFacingInterpolation: false,
+    disableCameraRelativeMovement: false,
+  });
   const isAttachmentEditorMode = attachmentEditorSession !== null;
   const orderScopeRef = useRef(orderScope);
+  const orderTargetingRef = useRef<OrderTargetingState | null>(null);
+  const animationReportsRef = useRef(animationReports);
+  const attachmentOverridesRef = useRef(attachmentOverrides);
+  const locomotionDebugRef = useRef(locomotionDebug);
   const movementKeysRef = useRef({
     forward: false,
     backward: false,
     left: false,
     right: false,
+    sprint: false,
   });
   const cameraOrbitRef = useRef({
     yaw: Math.PI,
@@ -236,10 +294,18 @@ function App() {
     lastClientY: 0,
   });
 
+  const toggleAimMode = () => {
+    const nextValue = !aimModeRef.current;
+    aimModeRef.current = nextValue;
+    setAimModeEnabled(nextValue);
+  };
+
   useEffect(() => {
     return authority.subscribe((nextSnapshot) => {
       snapshotCountRef.current += 1;
-      setSnapshot(nextSnapshot);
+      startTransition(() => {
+        setSnapshot(nextSnapshot);
+      });
     });
   }, [authority]);
 
@@ -258,6 +324,18 @@ function App() {
   }, [snapshot]);
 
   useEffect(() => {
+    animationReportsRef.current = animationReports;
+  }, [animationReports]);
+
+  useEffect(() => {
+    attachmentOverridesRef.current = attachmentOverrides;
+  }, [attachmentOverrides]);
+
+  useEffect(() => {
+    locomotionDebugRef.current = locomotionDebug;
+  }, [locomotionDebug]);
+
+  useEffect(() => {
     const leaderUnit = snapshot.units.find((unit) => unit.id === snapshot.leaderId);
     if (!leaderUnit) {
       return;
@@ -274,11 +352,11 @@ function App() {
 
   useEffect(() => {
     if (snapshot.phase === "battle") {
-      setShowSetupPanel(false);
+      setActiveTab("combat");
       return;
     }
     if (snapshot.phase === "loadout") {
-      setShowSetupPanel(true);
+      setActiveTab("setup");
     }
   }, [snapshot.phase]);
 
@@ -291,8 +369,22 @@ function App() {
   }, [armedSpellSlot]);
 
   useEffect(() => {
+    aimModeRef.current = aimModeEnabled;
+  }, [aimModeEnabled]);
+
+  useEffect(() => {
     orderScopeRef.current = orderScope;
   }, [orderScope]);
+
+  useEffect(() => {
+    orderTargetingRef.current = orderTargeting;
+  }, [orderTargeting]);
+
+  useEffect(() => {
+    authority.setLocomotionDebugOptions({
+      disableFacingInterpolation: locomotionDebug.disableFacingInterpolation,
+    });
+  }, [authority, locomotionDebug.disableFacingInterpolation]);
 
   useEffect(() => {
     writeAttachmentOverrides(attachmentOverrides);
@@ -380,7 +472,14 @@ function App() {
         0,
         (input.forward ? 1 : 0) - (input.backward ? 1 : 0),
       );
-      authority.setPlayerIntent(moveIntent, cameraOrbitRef.current.yaw);
+      authority.setPlayerCommand({
+        rawInputX: moveIntent.x,
+        rawInputY: moveIntent.z,
+        cameraYaw: locomotionDebug.disableCameraRelativeMovement ? 0 : cameraOrbitRef.current.yaw,
+        isSprinting: input.sprint,
+        isAiming: aimModeRef.current,
+        timestampMs: performance.now(),
+      });
       simulationAccumulatorRef.current += deltaMs;
 
       let simulatedSteps = 0;
@@ -403,7 +502,7 @@ function App() {
     return () => {
       window.cancelAnimationFrame(frameId);
     };
-  }, [authority, isAttachmentEditorMode]);
+  }, [authority, isAttachmentEditorMode, locomotionDebug.disableCameraRelativeMovement]);
 
   useEffect(() => {
     if (!snapshot.presentationEvents.length) {
@@ -442,10 +541,14 @@ function App() {
       JSON.stringify((() => {
         const liveSnapshot = authority.getSnapshot();
         const summary = summarizeSnapshot(liveSnapshot);
+        const leaderAnimation =
+          liveSnapshot.leaderId ? animationReportsRef.current[liveSnapshot.leaderId] ?? null : null;
 
         return {
           featureFlags,
+          locomotionDebug: locomotionDebugRef.current,
           assetAudit,
+          leaderAnimation,
           ...summary,
         };
       })());
@@ -491,7 +594,7 @@ function App() {
       chooseReward: (rewardId: RewardId) => {
         authority.chooseReward(rewardId);
       },
-      getAttachmentOverrides: () => attachmentOverrides,
+      getAttachmentOverrides: () => attachmentOverridesRef.current,
       resetAttachmentOverrides: () => {
         setAttachmentOverrides({});
       },
@@ -511,7 +614,7 @@ function App() {
       delete (window as Window & { advanceTime?: (ms: number) => void }).advanceTime;
       delete (window as Window & { combat_debug?: unknown }).combat_debug;
     };
-  }, [attachmentOverrides, authority]);
+  }, [authority]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -523,6 +626,9 @@ function App() {
       const movementDirection = resolveMovementDirection(event);
       if (
         movementDirection ||
+        event.code === "ShiftLeft" ||
+        event.code === "ShiftRight" ||
+        event.code === "KeyC" ||
         event.code === "Space" ||
         event.code === "Escape" ||
         event.code === "KeyE" ||
@@ -538,6 +644,9 @@ function App() {
       if (movementDirection) {
         movementKeysRef.current[movementDirection] = true;
       }
+      if (event.code === "ShiftLeft" || event.code === "ShiftRight") {
+        movementKeysRef.current.sprint = true;
+      }
 
       if (event.repeat) {
         return;
@@ -552,6 +661,11 @@ function App() {
 
       if (event.code === "KeyE") {
         authority.toggleLeaderEquipment();
+        return;
+      }
+
+      if (event.code === "KeyC") {
+        toggleAimMode();
         return;
       }
 
@@ -609,8 +723,14 @@ function App() {
       if (movementDirection) {
         event.preventDefault();
       }
+      if (event.code === "ShiftLeft" || event.code === "ShiftRight") {
+        event.preventDefault();
+      }
       if (movementDirection) {
         movementKeysRef.current[movementDirection] = false;
+      }
+      if (event.code === "ShiftLeft" || event.code === "ShiftRight") {
+        movementKeysRef.current.sprint = false;
       }
     };
 
@@ -627,6 +747,7 @@ function App() {
     snapshot.units.find((unit) => unit.id === snapshot.selectedTargetId) ?? null;
   const armedSpell = armedSpellSlot !== null ? prototypeCatalog.spells[snapshot.activeLoadoutIds[armedSpellSlot]] : null;
   const debugLeader = deferredSnapshot.units.find((unit) => unit.id === deferredSnapshot.leaderId) ?? null;
+  const debugLeaderAnimation = debugLeader ? animationReports[debugLeader.id] ?? null : null;
   const debugSelectedTarget =
     deferredSnapshot.units.find((unit) => unit.id === deferredSnapshot.selectedTargetId) ?? null;
   const recruitOptions = deferredSnapshot.recruitableCompanions.map((definitionId) => prototypeCatalog.units[definitionId]);
@@ -787,13 +908,33 @@ function App() {
           2,
         )
       : "";
-  const attachmentDebugOptions: AttachmentDebugOptions = {
-    inspectUnitId: attachmentInspectUnitId,
-    showSockets: showAttachmentSockets,
-    showMarkers: showAttachmentMarkers,
-    showSkeleton: showAttachmentSkeleton,
-    overrides: attachmentOverrides,
-  };
+  const attachmentDebugOptions: AttachmentDebugOptions = useMemo(
+    () => ({
+      inspectUnitId: attachmentInspectUnitId,
+      showSockets: showAttachmentSockets,
+      showMarkers: showAttachmentMarkers,
+      showSkeleton: showAttachmentSkeleton,
+      collectReports: activeTab === "attachment" && !!attachmentInspectUnitId,
+      overrides: attachmentOverrides,
+    }),
+    [activeTab, attachmentInspectUnitId, attachmentOverrides, showAttachmentMarkers, showAttachmentSkeleton, showAttachmentSockets],
+  );
+  const sceneLocomotionDebug: LocomotionSceneDebugOptions = useMemo(
+    () => ({
+      vectorMode: locomotionDebug.vectorMode,
+      disableAnimation: locomotionDebug.disableAnimation,
+      disableAttachments: locomotionDebug.disableAttachments,
+      disableOverlays: locomotionDebug.disableOverlays,
+      collectAnimationReports: activeTab === "debug",
+    }),
+    [
+      activeTab,
+      locomotionDebug.disableAnimation,
+      locomotionDebug.disableAttachments,
+      locomotionDebug.disableOverlays,
+      locomotionDebug.vectorMode,
+    ],
+  );
 
   useEffect(() => {
     const firstProfileId = inspectedAttachmentContext?.equipmentView.bindings[0]?.profileId ?? null;
@@ -856,7 +997,7 @@ function App() {
     );
   }, [attachmentEditorContext, attachmentEditorDefinition, attachmentEditorSession]);
 
-  const handleAttachmentDebugReport = (unitId: string, report: AttachmentDebugReport | null) => {
+  const handleAttachmentDebugReport = useCallback((unitId: string, report: AttachmentDebugReport | null) => {
     setAttachmentReports((current) => {
       if (!report && !current[unitId]) {
         return current;
@@ -866,7 +1007,19 @@ function App() {
         [unitId]: report,
       };
     });
-  };
+  }, []);
+
+  const handleAnimationDebugReport = useCallback((unitId: string, report: AnimationDebugReport | null) => {
+    setAnimationReports((current) => {
+      if (!report && !current[unitId]) {
+        return current;
+      }
+      return {
+        ...current,
+        [unitId]: report,
+      };
+    });
+  }, []);
 
   const copyAttachmentExport = async (payload: string) => {
     if (!payload) {
@@ -939,7 +1092,7 @@ function App() {
       selectedProfileId: selectedAttachmentBinding?.profileId ?? null,
       draftOverrides: cloneAttachmentOverrides(attachmentOverrides),
     });
-    setShowSetupPanel(false);
+    setActiveTab("combat");
   };
 
   const saveAttachmentEditorSession = () => {
@@ -966,21 +1119,22 @@ function App() {
     authority.setLeaderLoadout(nextLoadout);
   };
 
-  const handleUnitClick = (unitId: string) => {
-    const unit = snapshot.units.find((entry) => entry.id === unitId);
+  const handleUnitClick = useCallback((unitId: string) => {
+    const currentSnapshot = snapshotRef.current;
+    const unit = currentSnapshot.units.find((entry) => entry.id === unitId);
     if (!unit) {
       return;
     }
 
     const armedSlot = armedSpellSlotRef.current;
     if (armedSlot !== null) {
-      const spellId = snapshot.activeLoadoutIds[armedSlot];
+      const spellId = currentSnapshot.activeLoadoutIds[armedSlot];
       const spell = spellId ? prototypeCatalog.spells[spellId] : null;
       if (!spell) {
         return;
       }
       if (spell.targetingMode === "enemy" || spell.targetingMode === "ally") {
-        const leaderUnit = snapshot.units.find((entry) => entry.id === snapshot.leaderId);
+        const leaderUnit = currentSnapshot.units.find((entry) => entry.id === currentSnapshot.leaderId);
         authority.commandLeaderSpell(armedSlot, {
           targetUnitId: unit.id,
           targetPoint: unit.position,
@@ -995,17 +1149,38 @@ function App() {
     if (unit.faction === "enemy") {
       authority.commandLeaderBasicAttack(unit.id);
     }
-  };
+  }, [authority]);
 
-  const handleGroundClick = (point: { x: number; y: number; z: number }) => {
-    if (orderTargeting) {
-      issueScopedOrder(orderTargeting.orderId, point);
+  const issueScopedOrder = useCallback((
+    orderId: "follow_me" | "focus_weakest" | "hold_position" | "attack_my_target" | "defend_area" | "retreat",
+    anchor?: { x: number; y: number; z: number },
+  ) => {
+    const currentSnapshot = snapshotRef.current;
+    const currentOrderScope = orderScopeRef.current;
+    const nextAnchor = anchor ?? currentSnapshot.units.find((unit) => unit.id === currentSnapshot.leaderId)?.position ?? currentSnapshot.arena.defendPoint;
+
+    if (currentOrderScope === "all") {
+      authority.issueScopedOrder({ mode: "all" }, orderId, nextAnchor, currentSnapshot.selectedTargetId);
+      return;
+    }
+    if (currentOrderScope === "alpha" || currentOrderScope === "bravo") {
+      authority.issueScopedOrder({ mode: "custom", group: currentOrderScope }, orderId, nextAnchor, currentSnapshot.selectedTargetId);
+      return;
+    }
+    authority.issueScopedOrder({ mode: "group", group: currentOrderScope }, orderId, nextAnchor, currentSnapshot.selectedTargetId);
+  }, [authority]);
+
+  const handleGroundClick = useCallback((point: { x: number; y: number; z: number }) => {
+    const currentOrderTargeting = orderTargetingRef.current;
+    if (currentOrderTargeting) {
+      issueScopedOrder(currentOrderTargeting.orderId, point);
       setOrderTargeting(null);
       return;
     }
 
     const armedSlot = armedSpellSlotRef.current;
-    const leaderUnit = snapshot.units.find((entry) => entry.id === snapshot.leaderId);
+    const currentSnapshot = snapshotRef.current;
+    const leaderUnit = currentSnapshot.units.find((entry) => entry.id === currentSnapshot.leaderId);
     if (armedSlot !== null) {
       authority.commandLeaderSpell(armedSlot, {
         targetPoint: point,
@@ -1016,22 +1191,7 @@ function App() {
     }
 
     authority.setSelectedTarget(null);
-  };
-
-  const issueScopedOrder = (
-    orderId: "follow_me" | "focus_weakest" | "hold_position" | "attack_my_target" | "defend_area" | "retreat",
-    anchor = leader?.position ?? snapshot.arena.defendPoint,
-  ) => {
-    if (orderScope === "all") {
-      authority.issueScopedOrder({ mode: "all" }, orderId, anchor, snapshot.selectedTargetId);
-      return;
-    }
-    if (orderScope === "alpha" || orderScope === "bravo") {
-      authority.issueScopedOrder({ mode: "custom", group: orderScope }, orderId, anchor, snapshot.selectedTargetId);
-      return;
-    }
-    authority.issueScopedOrder({ mode: "group", group: orderScope }, orderId, anchor, snapshot.selectedTargetId);
-  };
+  }, [authority, issueScopedOrder]);
 
   const beginOrderTargeting = (orderId: GroundTargetOrderId) => {
     audioRef.current.play({ cue: "uiConfirm" });
@@ -1043,18 +1203,49 @@ function App() {
     audioRef.current.play({ cue: "uiConfirm" });
   };
 
+  const handlePerformanceSample = useCallback((sample: ScenePerformanceSample) => {
+    setLiveOps((current) => ({
+      ...current,
+      ...sample,
+    }));
+  }, []);
+
+  const TABS: { id: ActiveTab; label: string }[] = [
+    { id: "combat", label: "Combat" },
+    { id: "setup", label: "Setup" },
+    { id: "leader", label: "Leader" },
+    { id: "companions", label: "Companions" },
+    { id: "target", label: "Target" },
+    { id: "debug", label: "Debug/Ops" },
+    { id: "attachment", label: "Attachment Lab" },
+  ];
+
   return (
-    <div className={`app-shell${showSetupPanel ? "" : " app-shell-setup-collapsed"}`}>
-      <aside className={`boot-panel${showSetupPanel ? "" : " boot-panel-hidden"}`}>
-        <div className="boot-panel-header">
-          <div>
-            <p className="eyebrow">Commit 3 authority foundation</p>
-            <h1>Combat Prototype V0</h1>
+    <>
+      {!isAttachmentEditorMode && (
+        <nav className="browser-navbar">
+          {TABS.map((tab) => (
+            <div
+              key={tab.id}
+              className={`browser-tab${activeTab === tab.id ? " browser-tab-active" : ""}`}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              {tab.label}
+            </div>
+          ))}
+        </nav>
+      )}
+      <div className={`app-shell${activeTab === "setup" ? "" : " app-shell-setup-collapsed"}`}>
+        <aside className={`boot-panel${activeTab === "setup" ? "" : " boot-panel-hidden"}`}>
+          <div className="boot-panel-header">
+            <div>
+              <p className="eyebrow">Commit 3 authority foundation</p>
+              <h1>Combat Prototype V0</h1>
+            </div>
+            <button className="setup-panel-close" onClick={() => setActiveTab("combat")} type="button">
+              Hide setup
+            </button>
           </div>
-          <button className="setup-panel-close" onClick={() => setShowSetupPanel(false)} type="button">
-            Hide setup
-          </button>
-        </div>
         <p>
           Combat state now lives behind an authority layer. The UI is still a debug-heavy shell,
           but leader state, recruit flow, battle start, reward gating, cooldown ticking, downed
@@ -1514,25 +1705,24 @@ function App() {
               }}
             >
               <CombatScene
-                snapshot={snapshot}
+                authority={authority}
                 cameraOrbit={cameraOrbitRef.current}
                 onGroundClick={handleGroundClick}
                 onGroundHover={setGroundHoverPoint}
                 onUnitClick={handleUnitClick}
                 groundPreview={groundPreview}
                 reviveIndicatorUnitId={reviveIndicatorTargetId}
+                showAiStateText={activeTab === "debug"}
                 attachmentDebug={attachmentDebugOptions}
                 onAttachmentDebugReport={handleAttachmentDebugReport}
-                onPerformanceSample={(sample) => {
-                  setLiveOps((current) => ({
-                    ...current,
-                    ...sample,
-                  }));
-                }}
+                locomotionDebug={sceneLocomotionDebug}
+                onAnimationDebugReport={handleAnimationDebugReport}
+                onPerformanceSample={handlePerformanceSample}
               />
             </Canvas>
             <CombatHUD
               snapshot={snapshot}
+              activeTab={activeTab}
               armedSpellSlot={armedSpellSlot}
               activeOrderTargeting={orderTargeting?.orderId ?? null}
               onSpellSlotClick={(index) => {
@@ -1558,7 +1748,8 @@ function App() {
                 authority.chooseReward(rewardId);
               }}
             />
-            <div className="liveops-panel hud-card" aria-live="polite">
+            {activeTab === "debug" && (
+            <div className="liveops-panel hud-card" aria-live="polite" style={{ top: '18px' }}>
               <div className="liveops-header">
                 <p className="hud-kicker">Live Ops</p>
                 <strong>{liveOps.fps.toFixed(0)} FPS</strong>
@@ -1578,8 +1769,9 @@ function App() {
                 <strong>{liveOps.projectiles + liveOps.floatingTexts}</strong>
               </div>
             </div>
-            {featureFlags.enableDebugTools ? (
-              <div className="debug-overlay hud-card">
+            )}
+            {featureFlags.enableDebugTools && activeTab === "debug" && (
+              <div className="debug-overlay hud-card" style={{ top: '136px' }}>
             <div className="liveops-header">
               <p className="hud-kicker">Debug</p>
               <strong>{snapshot.phase}</strong>
@@ -1662,13 +1854,122 @@ function App() {
                 id="debug-clear-enemies"
                 onClick={() => {
                   playUiConfirm();
-                  authority.clearDebugEnemies();
+          authority.clearDebugEnemies();
                 }}
               >
                 Clear wave
               </button>
             </div>
-            <div className="attachment-debug-panel">
+            <div className="debug-readout">
+              <span>Locomotion</span>
+              <strong>
+                {debugLeader
+                  ? `${debugLeader.locomotion.locomotionMode} | ${debugLeader.locomotion.facingMode}`
+                  : "No leader"}
+              </strong>
+              <span>Input</span>
+              <strong>
+                {debugLeader
+                  ? `${debugLeader.inputTelemetry.rawInputX.toFixed(1)}, ${debugLeader.inputTelemetry.rawInputY.toFixed(1)} | mag ${debugLeader.inputTelemetry.desiredMagnitude.toFixed(2)}`
+                  : "n/a"}
+              </strong>
+              <span>Yaw</span>
+              <strong>
+                {debugLeader
+                  ? `${debugLeader.locomotion.currentYaw.toFixed(2)} -> ${debugLeader.locomotion.targetYaw.toFixed(2)}`
+                  : "n/a"}
+              </strong>
+            </div>
+            <div className="debug-readout">
+              <span>Aim</span>
+              <strong>{aimModeEnabled ? "Enabled" : "Off"}</strong>
+              <span>Sprint</span>
+              <strong>{movementKeysRef.current.sprint ? "Held" : "Off"}</strong>
+              <span>Vectors</span>
+              <strong>{locomotionDebug.vectorMode}</strong>
+              <span>Clip</span>
+              <strong>{debugLeaderAnimation?.activeBaseClip ?? "pending"}</strong>
+              <span>Normalize</span>
+              <strong>{debugLeaderAnimation?.normalizationSummary.join(" | ") || "pending"}</strong>
+            </div>
+            <div className="debug-toggle-grid">
+              <button
+                className={`debug-chip-button${locomotionDebug.vectorMode !== "off" ? " is-active" : ""}`}
+                onClick={() => {
+                  setLocomotionDebug((current) => ({ ...current, vectorMode: cycleVectorMode(current.vectorMode) }));
+                }}
+                type="button"
+              >
+                {`Vectors: ${locomotionDebug.vectorMode}`}
+              </button>
+              <button
+                className={`debug-chip-button${locomotionDebug.disableAnimation ? " is-active" : ""}`}
+                onClick={() => {
+                  setLocomotionDebug((current) => ({ ...current, disableAnimation: !current.disableAnimation }));
+                }}
+                type="button"
+              >
+                Anim Off
+              </button>
+              <button
+                className={`debug-chip-button${locomotionDebug.disableAttachments ? " is-active" : ""}`}
+                onClick={() => {
+                  setLocomotionDebug((current) => ({ ...current, disableAttachments: !current.disableAttachments }));
+                }}
+                type="button"
+              >
+                Attach Off
+              </button>
+              <button
+                className={`debug-chip-button${locomotionDebug.disableOverlays ? " is-active" : ""}`}
+                onClick={() => {
+                  setLocomotionDebug((current) => ({ ...current, disableOverlays: !current.disableOverlays }));
+                }}
+                type="button"
+              >
+                Overlay Off
+              </button>
+            </div>
+            <div className="debug-toggle-grid">
+              <button
+                className={`debug-chip-button${locomotionDebug.disableFacingInterpolation ? " is-active" : ""}`}
+                onClick={() => {
+                  setLocomotionDebug((current) => ({
+                    ...current,
+                    disableFacingInterpolation: !current.disableFacingInterpolation,
+                  }));
+                }}
+                type="button"
+              >
+                Snap Facing
+              </button>
+              <button
+                className={`debug-chip-button${locomotionDebug.disableCameraRelativeMovement ? " is-active" : ""}`}
+                onClick={() => {
+                  setLocomotionDebug((current) => ({
+                    ...current,
+                    disableCameraRelativeMovement: !current.disableCameraRelativeMovement,
+                  }));
+                }}
+                type="button"
+              >
+                World Move
+              </button>
+              <button
+                className={`debug-chip-button${aimModeEnabled ? " is-active" : ""}`}
+                onClick={() => {
+                  toggleAimMode();
+                }}
+                type="button"
+              >
+                Aim Mode
+              </button>
+            </div>
+            </div>
+            )}
+            {featureFlags.enableDebugTools && activeTab === "attachment" && (
+            <div className="debug-overlay hud-card" style={{ top: '18px' }}>
+            <div className="attachment-debug-panel" style={{ marginTop: 0, borderTop: 'none', paddingTop: 0 }}>
               <div className="liveops-header">
                 <p className="hud-kicker">Attachment Lab</p>
                 <strong>{attachmentInspectUnitId ?? "none"}</strong>
@@ -1925,6 +2226,10 @@ function App() {
                 <p className="hud-empty">Select a unit with visible equipment to open the attachment editor.</p>
               )}
             </div>
+            </div>
+            )}
+            {featureFlags.enableDebugTools && activeTab === "debug" && (
+            <div className="debug-overlay hud-card" style={{ top: '350px' }}>
             <div className="debug-readout">
               <span>Cooldowns</span>
               <strong>
@@ -1942,9 +2247,11 @@ function App() {
                   ? aiStateSummary.map((entry) => `${entry.name}: ${entry.stateLabel}`).join(" | ")
                   : "No active AI units"}
               </strong>
+              <span>Animation</span>
+              <strong>{debugLeaderAnimation?.activeBaseClip ?? "pending"}</strong>
             </div>
               </div>
-            ) : null}
+            )}
           </>
         ) : null}
         {attachmentEditorSession ? (
@@ -2261,36 +2568,31 @@ function App() {
                 ) : null}
               </aside>
               <section className="hud-card attachment-editor-mode-stage">
-                <AttachmentEditorViewport
-                  binding={attachmentEditorSelectedBinding}
-                  profile={attachmentEditorSelectedProfile}
-                  presentationId={attachmentEditorContext?.presentationId ?? null}
-                  unitName={attachmentEditorDefinition?.name ?? null}
-                  showSockets={showAttachmentSockets}
-                  showMarkers={showAttachmentMarkers}
-                  showSkeleton={showAttachmentSkeleton}
-                  onPoseChange={(nextPose) => {
-                    if (!attachmentEditorSelectedProfile) {
-                      return;
-                    }
-                    updateAttachmentEditorDraftPose(attachmentEditorSelectedProfile.id, nextPose);
-                  }}
-                />
+                <Suspense fallback={<div className="attachment-editor-viewport-loading">Loading preview viewport…</div>}>
+                  <AttachmentEditorViewport
+                    binding={attachmentEditorSelectedBinding}
+                    profile={attachmentEditorSelectedProfile}
+                    presentationId={attachmentEditorContext?.presentationId ?? null}
+                    unitName={attachmentEditorDefinition?.name ?? null}
+                    showSockets={showAttachmentSockets}
+                    showMarkers={showAttachmentMarkers}
+                    showSkeleton={showAttachmentSkeleton}
+                    onPoseChange={(nextPose) => {
+                      if (!attachmentEditorSelectedProfile) {
+                        return;
+                      }
+                      updateAttachmentEditorDraftPose(attachmentEditorSelectedProfile.id, nextPose);
+                    }}
+                  />
+                </Suspense>
               </section>
             </div>
           </div>
         ) : null}
-        {!showSetupPanel && !isAttachmentEditorMode ? (
-          <button
-            className="setup-panel-toggle"
-            onClick={() => setShowSetupPanel(true)}
-            type="button"
-          >
-            Open setup
-          </button>
-        ) : null}
+
       </main>
     </div>
+    </>
   );
 }
 

@@ -1,20 +1,21 @@
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import { Billboard, Line, Text } from "@react-three/drei";
-import type { CombatSnapshot } from "@/game/runtime";
+import { AnimationAdapter } from "@/game/animation/AnimationAdapter";
+import { CharacterAnimator } from "@/game/animation/CharacterAnimator";
+import type { CombatAuthority } from "@/game/engine";
+import type { CombatRenderSnapshot, CombatRenderUnit } from "@/game/runtime";
 import type { SpellId, Vec3 } from "@/game/defs";
 import { prototypeCatalog } from "@/game/content";
 import { assetUrls } from "@/game/assets";
 import { useCharacterModel, useEquipmentModel, useModelAsset } from "@/game/assets/loader";
 import { equipmentItemsById, getRigProfileIdForPresentation } from "@/game/equipment/catalog";
-import {
-  buildAttachmentDebugReport,
-  CharacterRigAdapter,
-  bindEquipmentModelToSocket,
-  reportAttachmentIssue,
-} from "@/game/equipment/runtime";
+import { AttachmentSystem } from "@/game/character/AttachmentSystem";
+import { CharacterRig } from "@/game/character/CharacterRig";
+import { buildAttachmentDebugReport } from "@/game/equipment/runtime";
 import type { AttachmentDebugReport, AttachmentProfileOverrideMap, SocketId } from "@/game/equipment/schema";
 import { resolveVisibleEquipmentView } from "@/game/equipment/system";
+import { yawToDirection } from "@/game/math";
 import * as THREE from "three";
 
 export interface CameraOrbitState {
@@ -45,50 +46,40 @@ export interface AttachmentDebugOptions {
   showSockets: boolean;
   showMarkers: boolean;
   showSkeleton: boolean;
+  collectReports: boolean;
   overrides: AttachmentProfileOverrideMap;
 }
 
+export interface LocomotionSceneDebugOptions {
+  vectorMode: "off" | "selected" | "all";
+  disableAnimation: boolean;
+  disableAttachments: boolean;
+  disableOverlays: boolean;
+  collectAnimationReports: boolean;
+}
+
+export interface AnimationDebugReport {
+  unitId: string;
+  activeBaseClip: string | null;
+  normalizedClipId: string | null;
+  normalizationSummary: string[];
+}
+
 interface CombatSceneProps {
-  snapshot: CombatSnapshot;
+  authority: CombatAuthority;
   cameraOrbit: CameraOrbitState;
   onGroundClick: (point: Vec3) => void;
   onGroundHover: (point: Vec3 | null) => void;
   onUnitClick: (unitId: string) => void;
   groundPreview: GroundPreviewState | null;
   reviveIndicatorUnitId: string | null;
+  showAiStateText: boolean;
   onPerformanceSample?: (sample: ScenePerformanceSample) => void;
   attachmentDebug?: AttachmentDebugOptions;
   onAttachmentDebugReport?: (unitId: string, report: AttachmentDebugReport | null) => void;
+  locomotionDebug?: LocomotionSceneDebugOptions;
+  onAnimationDebugReport?: (unitId: string, report: AnimationDebugReport | null) => void;
 }
-
-type PresentationAnimationId =
-  | "idle"
-  | "run"
-  | "runLeft"
-  | "runRight"
-  | "runBack"
-  | "walkLeft"
-  | "walkRight"
-  | "walkBack"
-  | "attack"
-  | "cast"
-  | "hit"
-  | "death"
-  | "block"
-  | "draw"
-  | "release"
-  | "guard";
-
-const LOOPING_LOCOMOTION_ANIMATIONS: PresentationAnimationId[] = [
-  "idle",
-  "run",
-  "runLeft",
-  "runRight",
-  "runBack",
-  "walkLeft",
-  "walkRight",
-  "walkBack",
-];
 
 const SOCKET_DEBUG_IDS: SocketId[] = [
   "hand_r_weapon",
@@ -99,27 +90,53 @@ const SOCKET_DEBUG_IDS: SocketId[] = [
   "hip_r_weapon",
 ];
 
-const useCharacterRigAdapter = (root: THREE.Object3D | null, presentationId: CombatSnapshot["units"][number]["definitionId"]) => {
-  const [adapter, setAdapter] = useState<CharacterRigAdapter | null>(null);
+const useCombatRenderSnapshot = (authority: CombatAuthority) =>
+  useSyncExternalStore(
+    (listener) => authority.subscribeRender(listener),
+    () => authority.getRenderSnapshot(),
+    () => authority.getRenderSnapshot(),
+  );
+
+const useCharacterRig = (model: ReturnType<typeof useCharacterModel>, presentationId: CombatRenderUnit["definitionId"]) => {
+  const [rig, setRig] = useState<CharacterRig | null>(null);
 
   useEffect(() => {
-    if (!root) {
-      setAdapter(null);
+    if (!model) {
+      setRig(null);
       return;
     }
 
     const unitDefinition = prototypeCatalog.units[presentationId];
-    const rigProfileId = getRigProfileIdForPresentation(unitDefinition.presentationId);
-    const nextAdapter = new CharacterRigAdapter(root, rigProfileId);
-    setAdapter(nextAdapter);
+    const nextRig = new CharacterRig(model, unitDefinition.presentationId);
+    setRig(nextRig);
 
     return () => {
-      nextAdapter.dispose();
-      setAdapter(null);
+      nextRig.dispose();
+      setRig(null);
     };
-  }, [presentationId, root]);
+  }, [model, presentationId]);
 
-  return adapter;
+  return rig;
+};
+
+const useAttachmentSystem = (rig: CharacterRig | null) => {
+  const [system, setSystem] = useState<AttachmentSystem | null>(null);
+
+  useEffect(() => {
+    if (!rig) {
+      setSystem(null);
+      return;
+    }
+
+    const nextSystem = new AttachmentSystem(rig);
+    setSystem(nextSystem);
+    return () => {
+      nextSystem.clear();
+      setSystem(null);
+    };
+  }, [rig]);
+
+  return system;
 };
 
 function NodeAxesHelper({
@@ -228,50 +245,48 @@ const useWorldTexture = (url: string | null) => {
 };
 
 function SocketDebugHelpers({
-  adapter,
+  rig,
   enabled,
 }: {
-  adapter: CharacterRigAdapter | null;
+  rig: CharacterRig | null;
   enabled: boolean;
 }) {
-  if (!adapter || !enabled) {
+  if (!rig || !enabled) {
     return null;
   }
 
   return (
     <>
       {SOCKET_DEBUG_IDS.map((socketId) => (
-        <NodeAxesHelper key={socketId} parent={adapter.getSocketNode(socketId)} size={0.18} />
+        <NodeAxesHelper key={socketId} parent={rig.getSocketNode(socketId)} size={0.18} />
       ))}
     </>
   );
 }
 
 function EquipmentAttachmentBinding({
-  adapter,
+  attachmentSystem,
   unit,
   binding,
   showMarkerDebug,
 }: {
-  adapter: CharacterRigAdapter | null;
-  unit: CombatSnapshot["units"][number];
+  attachmentSystem: AttachmentSystem | null;
+  unit: CombatRenderUnit;
   binding: ReturnType<typeof resolveVisibleEquipmentView>["bindings"][number];
   showMarkerDebug: boolean;
 }) {
   const itemDefinition = equipmentItemsById[binding.itemId];
   const model = useEquipmentModel(itemDefinition.modelUrl);
   const [bindingRoot, setBindingRoot] = useState<THREE.Object3D | null>(null);
-  const handleRef = useRef<ReturnType<typeof bindEquipmentModelToSocket> | null>(null);
+  const bindingKey = `${unit.id}:${binding.sourceSlot}:${binding.itemId}:${binding.profileId}`;
 
   useEffect(() => {
     setBindingRoot(null);
-    handleRef.current = null;
-    if (!adapter || !model) {
+    if (!attachmentSystem || !model) {
       return;
     }
 
-    const handle = bindEquipmentModelToSocket({
-      adapter,
+    const handle = attachmentSystem.bind(bindingKey, {
       characterId: unit.id,
       characterName: unit.name,
       itemId: binding.itemId,
@@ -282,28 +297,14 @@ function EquipmentAttachmentBinding({
       sourceMarkerId: binding.sourceMarkerId,
     });
 
-    if (!handle) {
-      reportAttachmentIssue({
-        characterId: unit.id,
-        characterName: unit.name,
-        rigProfileId: adapter.getRigProfileId(),
-        itemId: binding.itemId,
-        socketId: binding.socketId,
-        stanceFamily: binding.stanceFamily,
-        reason: "Attachment bind failed",
-      });
-      return;
-    }
-
-    handleRef.current = handle;
-    setBindingRoot(handle.bindingRoot);
+    setBindingRoot(handle?.bindingRoot ?? null);
     return () => {
-      handleRef.current = null;
-      handle.detach();
+      attachmentSystem.unbind(bindingKey);
       setBindingRoot(null);
     };
   }, [
-    adapter,
+    attachmentSystem,
+    bindingKey,
     binding.itemId,
     binding.profile.id,
     binding.socketId,
@@ -315,8 +316,10 @@ function EquipmentAttachmentBinding({
   ]);
 
   useEffect(() => {
-    handleRef.current?.applyPose(binding.profile.resolvedPoseOffset);
+    attachmentSystem?.updatePose(bindingKey, binding.profile.resolvedPoseOffset);
   }, [
+    attachmentSystem,
+    bindingKey,
     binding.profile.resolvedPoseOffset.position.x,
     binding.profile.resolvedPoseOffset.position.y,
     binding.profile.resolvedPoseOffset.position.z,
@@ -329,7 +332,17 @@ function EquipmentAttachmentBinding({
   return showMarkerDebug && bindingRoot ? <NodeAxesHelper parent={bindingRoot} size={0.14} /> : null;
 }
 
-function CameraRig({ snapshot, cameraOrbit }: { snapshot: CombatSnapshot; cameraOrbit: CameraOrbitState }) {
+function CameraRig({
+  leader,
+  selectedTarget,
+  obstacles,
+  cameraOrbit,
+}: {
+  leader: CombatRenderUnit | null;
+  selectedTarget: CombatRenderUnit | null;
+  obstacles: CombatRenderSnapshot["arena"]["obstacles"];
+  cameraOrbit: CameraOrbitState;
+}) {
   const cameraTarget = useRef(new THREE.Vector3());
   const cameraPosition = useRef(new THREE.Vector3());
   const initializedRef = useRef(false);
@@ -344,7 +357,7 @@ function CameraRig({ snapshot, cameraOrbit }: { snapshot: CombatSnapshot; camera
   const hitPointRef = useRef(new THREE.Vector3());
   const obstacleBounds = useMemo(
     () =>
-      snapshot.arena.obstacles
+      obstacles
         .filter((obstacle) => obstacle.blocksMovement)
         .map((obstacle) => {
           const halfExtents = new THREE.Vector3(
@@ -359,18 +372,13 @@ function CameraRig({ snapshot, cameraOrbit }: { snapshot: CombatSnapshot; camera
           );
           return new THREE.Box3(center.clone().sub(halfExtents), center.clone().add(halfExtents));
         }),
-    [snapshot.arena.obstacles],
+    [obstacles],
   );
 
   useFrame(({ camera }) => {
-    const leader = snapshot.units.find((unit) => unit.id === snapshot.leaderId);
     if (!leader) {
       return;
     }
-
-    const selectedTarget = snapshot.selectedTargetId
-      ? snapshot.units.find((unit) => unit.id === snapshot.selectedTargetId) ?? null
-      : null;
     if (!initializedRef.current) {
       cameraOrbit.yaw = leader.facingYaw;
     }
@@ -546,7 +554,7 @@ function BillboardIndicator({
   );
 }
 
-function HealthBar({ unit }: { unit: CombatSnapshot["units"][number] }) {
+function HealthBar({ unit }: { unit: CombatRenderUnit }) {
   const ratio = Math.max(0.06, Math.min(1, unit.currentHp / prototypeCatalog.units[unit.definitionId].stats.maxHp));
   const fillColor = unit.isDead ? "#5f5149" : unit.isDowned ? "#d5b076" : unit.faction === "enemy" ? "#d46f67" : "#78cb8d";
 
@@ -578,7 +586,7 @@ function UnitLabel({
   unit,
   showAiState,
 }: {
-  unit: CombatSnapshot["units"][number];
+  unit: CombatRenderUnit;
   showAiState: boolean;
 }) {
   const statusLine = unit.isDead ? "Defeated" : unit.isDowned ? "Downed" : prototypeCatalog.units[unit.definitionId].group;
@@ -617,7 +625,7 @@ function UnitLabel({
           anchorY="middle"
           position={[0, 2.42, 0]}
         >
-          {unit.aiState.stateLabel}
+          {unit.aiStateLabel}
         </Text>
       ) : null}
     </>
@@ -632,10 +640,10 @@ const MemoUnitLabel = memo(
     previous.unit.isDead === next.unit.isDead &&
     previous.unit.isDowned === next.unit.isDowned &&
     previous.showAiState === next.showAiState &&
-    previous.unit.aiState.stateLabel === next.unit.aiState.stateLabel,
+    previous.unit.aiStateLabel === next.unit.aiStateLabel,
 );
 
-function StatusIndicators({ unit }: { unit: CombatSnapshot["units"][number] }) {
+function StatusIndicators({ unit }: { unit: CombatRenderUnit }) {
   const visibleStatuses = unit.statuses.slice(0, 3);
 
   return (
@@ -660,243 +668,154 @@ function StatusIndicators({ unit }: { unit: CombatSnapshot["units"][number] }) {
   );
 }
 
-function UnitModel({
+function UnitRigActor({
+  rig,
   unit,
-  isSelected,
-  showAiState,
   onClick,
-  attachmentDebug,
-  onAttachmentDebugReport,
 }: {
-  unit: CombatSnapshot["units"][number];
-  isSelected: boolean;
-  showAiState: boolean;
+  rig: CharacterRig | null;
+  unit: CombatRenderUnit;
   onClick: (unitId: string) => void;
-  attachmentDebug?: AttachmentDebugOptions;
-  onAttachmentDebugReport?: (unitId: string, report: AttachmentDebugReport | null) => void;
 }) {
-  const definition = prototypeCatalog.units[unit.definitionId];
-  const model = useCharacterModel(definition.presentationId);
-  const adapter = useCharacterRigAdapter(model?.scene ?? null, unit.definitionId);
-  const mixerRef = useRef<THREE.AnimationMixer | null>(null);
-  const actionsRef = useRef<Partial<Record<PresentationAnimationId, THREE.AnimationAction>>>({});
-  const activeAnimationRef = useRef<PresentationAnimationId | null>(null);
-
-  const weapon = prototypeCatalog.weapons[unit.weaponId];
-  const rigProfileId = getRigProfileIdForPresentation(definition.presentationId);
-  const equipmentView = useMemo(
-    () => resolveVisibleEquipmentView(unit.equipmentState, rigProfileId, weapon.kind, attachmentDebug?.overrides ?? {}),
-    [attachmentDebug?.overrides, rigProfileId, unit.equipmentState, weapon.kind],
-  );
-  const stanceFamily = equipmentView.stanceFamily;
-  const inspectThisUnit = attachmentDebug?.inspectUnitId === unit.id;
-  const moveAmount = Math.hypot(unit.velocity.x, unit.velocity.z);
-  const attackWindowMs = Math.min(260, weapon.cooldownMs * 0.24);
-  const forwardX = Math.sin(unit.facingYaw);
-  const forwardZ = Math.cos(unit.facingYaw);
-  const localForward = unit.velocity.x * forwardX + unit.velocity.z * forwardZ;
-  const localSide = unit.velocity.x * forwardZ - unit.velocity.z * forwardX;
-  const localMoveIntent = unit.controller === "player" ? unit.moveIntent : null;
-  const hasLocomotionIntent =
-    unit.controller === "player"
-      ? Math.hypot(localMoveIntent?.x ?? 0, localMoveIntent?.z ?? 0) > 0.05
-      : moveAmount > 0.025;
-
-  let desiredAnimation: PresentationAnimationId = "idle";
-  if (unit.isDead) {
-    desiredAnimation = "death";
-  } else if (unit.isDowned) {
-    desiredAnimation = "hit";
-  } else if (unit.castState) {
-    desiredAnimation = "cast";
-  } else if (unit.basicCooldownMs >= weapon.cooldownMs - attackWindowMs) {
-    desiredAnimation = "attack";
-  } else if (hasLocomotionIntent) {
-    const pureSideStrafe =
-      !!localMoveIntent && Math.abs(localMoveIntent.z) <= 0.05 && Math.abs(localMoveIntent.x) > 0.05;
-    const pureBackpedal = !!localMoveIntent && Math.abs(localMoveIntent.x) <= 0.05 && localMoveIntent.z < -0.05;
-
-    if (pureSideStrafe) {
-      desiredAnimation = localMoveIntent.x > 0 ? "walkLeft" : "walkRight";
-    } else if (pureBackpedal) {
-      desiredAnimation = "walkBack";
-    } else if (localForward < -0.025 && Math.abs(localForward) > Math.abs(localSide) * 0.75) {
-      desiredAnimation = "runBack";
-    } else if (localSide > 0.025 && Math.abs(localSide) > Math.abs(localForward) * 0.75) {
-      desiredAnimation = "runLeft";
-    } else if (localSide < -0.025 && Math.abs(localSide) > Math.abs(localForward) * 0.75) {
-      desiredAnimation = "runRight";
-    } else {
-      desiredAnimation = "run";
+  useEffect(() => {
+    if (!rig) {
+      return;
     }
+    rig.setActorTransform(unit.position, unit.facingYaw);
+  }, [rig, unit.facingYaw, unit.position.x, unit.position.y, unit.position.z]);
+
+  if (!rig) {
+    return null;
   }
 
-  const pickAnimation = (animationId: PresentationAnimationId) => {
-    if (!model) {
-      return null;
-    }
-    const candidates: PresentationAnimationId[] = [animationId];
-    if (animationId === "cast") {
-      if (stanceFamily === "bow") {
-        candidates.push("draw", "release");
-      } else if (stanceFamily === "one_hand_shield") {
-        candidates.push("block", "guard", "attack");
-      } else {
-        candidates.push("draw", "block", "attack");
-      }
-    }
-    if (animationId === "walkLeft") {
-      candidates.push("runLeft", "run");
-    }
-    if (animationId === "walkRight") {
-      candidates.push("runRight", "run");
-    }
-    if (animationId === "walkBack") {
-      candidates.push("runBack", "run");
-    }
-    if (animationId === "runLeft" || animationId === "runRight" || animationId === "runBack") {
-      candidates.push("run");
-    }
-    if (animationId === "attack") {
-      if (stanceFamily === "bow") {
-        candidates.push("release");
-      }
-      if (stanceFamily === "one_hand_shield") {
-        candidates.push("guard", "block");
-      }
-      candidates.push("release", "guard");
-    }
-    if (animationId === "hit") {
-      if (stanceFamily === "one_hand_shield") {
-        candidates.push("block", "guard");
-      }
-      candidates.push("guard", "idle");
-    }
-    if (animationId === "death") {
-      candidates.push("hit", "guard");
-    }
-    candidates.push("idle");
-    return candidates.find((candidate) => model.animations[candidate]) ?? null;
-  };
-
-  useEffect(() => {
-    if (!model) {
-      mixerRef.current = null;
-      actionsRef.current = {};
-      activeAnimationRef.current = null;
-      return;
-    }
-
-    const mixer = new THREE.AnimationMixer(model.scene);
-    const actions: Partial<Record<PresentationAnimationId, THREE.AnimationAction>> = {};
-    Object.entries(model.animations).forEach(([animationId, clip]) => {
-      if (!clip) {
-        return;
-      }
-      const action = mixer.clipAction(clip, model.scene);
-      const isLoopingLocomotion = LOOPING_LOCOMOTION_ANIMATIONS.includes(animationId as PresentationAnimationId);
-      action.clampWhenFinished = !isLoopingLocomotion;
-      action.loop = isLoopingLocomotion ? THREE.LoopRepeat : THREE.LoopOnce;
-      actions[animationId as PresentationAnimationId] = action;
-    });
-
-    mixerRef.current = mixer;
-    actionsRef.current = actions;
-    activeAnimationRef.current = null;
-
-    return () => {
-      mixer.stopAllAction();
-      mixerRef.current = null;
-      actionsRef.current = {};
-      activeAnimationRef.current = null;
-    };
-  }, [model]);
-
-  useEffect(() => {
-    const nextAnimation = pickAnimation(desiredAnimation);
-    if (!nextAnimation || nextAnimation === activeAnimationRef.current) {
-      return;
-    }
-
-    const actions = actionsRef.current;
-    const nextAction = actions[nextAnimation];
-    if (!nextAction) {
-      return;
-    }
-
-    if (activeAnimationRef.current && actions[activeAnimationRef.current]) {
-      actions[activeAnimationRef.current]?.fadeOut(0.14);
-    }
-
-    nextAction.reset().fadeIn(0.14).play();
-    activeAnimationRef.current = nextAnimation;
-  }, [
-    desiredAnimation,
-    model,
-    unit.basicCooldownMs,
-    unit.castState,
-    unit.isDead,
-    unit.isDowned,
-    unit.velocity.x,
-    unit.velocity.z,
-    unit.moveIntent.x,
-    unit.moveIntent.z,
-  ]);
-
-  useFrame((_, delta) => {
-    mixerRef.current?.update(delta);
-  });
-
-  useEffect(() => {
-    if (!onAttachmentDebugReport) {
-      return;
-    }
-
-    if (!inspectThisUnit || !adapter) {
-      onAttachmentDebugReport(unit.id, null);
-      return;
-    }
-
-    onAttachmentDebugReport(
-      unit.id,
-      buildAttachmentDebugReport({
-        unitId: unit.id,
-        unitName: unit.name,
-        adapter,
-        equipmentView,
-      }),
-    );
-
-    return () => {
-      onAttachmentDebugReport(unit.id, null);
-    };
-  }, [adapter, equipmentView, inspectThisUnit, onAttachmentDebugReport, unit.id, unit.name]);
-
-  const selectedMarkerUrl =
-    unit.faction === "enemy" ? assetUrls.ui.targetEnemy : assetUrls.ui.targetAlly;
-
   return (
-    <group
-      position={[unit.position.x, unit.position.y, unit.position.z]}
+    <primitive
+      object={rig.actorRoot}
       onPointerDown={(event: ThreeEvent<PointerEvent>) => {
         event.stopPropagation();
         onClick(unit.id);
       }}
-    >
-      <group rotation={[0, unit.facingYaw + (model?.rotationOffsetY ?? 0), 0]}>
-        {model ? <primitive object={model.scene} /> : null}
-        <SkeletonDebugHelper root={model?.scene ?? null} enabled={!!inspectThisUnit && !!attachmentDebug?.showSkeleton} />
-        <SocketDebugHelpers adapter={adapter} enabled={!!inspectThisUnit && !!attachmentDebug?.showSockets} />
-        {equipmentView.bindings.map((binding) => (
-          <EquipmentAttachmentBinding
-            key={`${unit.id}-${binding.sourceSlot}-${binding.itemId}-${binding.profileId}`}
-            adapter={adapter}
-            unit={unit}
-            binding={binding}
-            showMarkerDebug={!!inspectThisUnit && !!attachmentDebug?.showMarkers}
-          />
-        ))}
-      </group>
+    />
+  );
+}
+
+const MemoUnitRigActor = memo(
+  UnitRigActor,
+  (previous, next) => previous.rig === next.rig && previous.unit === next.unit,
+);
+
+function UnitAttachments({
+  attachmentSystem,
+  unit,
+  equipmentView,
+  inspectThisUnit,
+  attachmentDebug,
+  disabled,
+}: {
+  attachmentSystem: AttachmentSystem | null;
+  unit: CombatRenderUnit;
+  equipmentView: ReturnType<typeof resolveVisibleEquipmentView>;
+  inspectThisUnit: boolean;
+  attachmentDebug?: AttachmentDebugOptions;
+  disabled: boolean;
+}) {
+  if (disabled) {
+    return null;
+  }
+
+  return (
+    <>
+      {equipmentView.bindings.map((binding) => (
+        <EquipmentAttachmentBinding
+          key={`${unit.id}-${binding.sourceSlot}-${binding.itemId}-${binding.profileId}`}
+          attachmentSystem={attachmentSystem}
+          unit={unit}
+          binding={binding}
+          showMarkerDebug={inspectThisUnit && !!attachmentDebug?.showMarkers}
+        />
+      ))}
+    </>
+  );
+}
+
+const MemoUnitAttachments = memo(
+  UnitAttachments,
+  (previous, next) =>
+    previous.attachmentSystem === next.attachmentSystem &&
+    previous.unit.id === next.unit.id &&
+    previous.unit.equipmentRevision === next.unit.equipmentRevision &&
+    previous.equipmentView === next.equipmentView &&
+    previous.inspectThisUnit === next.inspectThisUnit &&
+    previous.disabled === next.disabled &&
+    previous.attachmentDebug?.showMarkers === next.attachmentDebug?.showMarkers,
+);
+
+function UnitDebugVectors({
+  unit,
+  enabled,
+}: {
+  unit: CombatRenderUnit;
+  enabled: boolean;
+}) {
+  if (!enabled) {
+    return null;
+  }
+
+  const facingDirection = yawToDirection(unit.facingYaw);
+  const vectorOrigin: [number, number, number] = [unit.position.x, unit.position.y + 0.15, unit.position.z];
+  const desiredMoveVector: [number, number, number] = [
+    unit.position.x + unit.locomotion.desiredWorldMoveDirection.x * 1.15,
+    unit.position.y + 0.15,
+    unit.position.z + unit.locomotion.desiredWorldMoveDirection.z * 1.15,
+  ];
+  const velocityVector: [number, number, number] = [
+    unit.position.x + unit.velocity.x * 0.22,
+    unit.position.y + 0.15,
+    unit.position.z + unit.velocity.z * 0.22,
+  ];
+  const facingVector: [number, number, number] = [
+    unit.position.x + facingDirection.x * 1.35,
+    unit.position.y + 0.15,
+    unit.position.z + facingDirection.z * 1.35,
+  ];
+
+  return (
+    <>
+      <Line points={[vectorOrigin, facingVector]} color="#f6b35e" lineWidth={1.3} />
+      {unit.locomotion.shouldTranslate ? (
+        <Line points={[vectorOrigin, desiredMoveVector]} color="#7ec8ff" lineWidth={1.1} />
+      ) : null}
+      {unit.locomotion.isMoving ? (
+        <Line points={[vectorOrigin, velocityVector]} color="#8ce29b" lineWidth={1.1} />
+      ) : null}
+    </>
+  );
+}
+
+const MemoUnitDebugVectors = memo(
+  UnitDebugVectors,
+  (previous, next) => previous.unit === next.unit && previous.enabled === next.enabled,
+);
+
+function UnitOverlays({
+  unit,
+  isSelected,
+  showAiState,
+  disabled,
+}: {
+  unit: CombatRenderUnit;
+  isSelected: boolean;
+  showAiState: boolean;
+  disabled: boolean;
+}) {
+  if (disabled) {
+    return null;
+  }
+
+  const selectedMarkerUrl = unit.faction === "enemy" ? assetUrls.ui.targetEnemy : assetUrls.ui.targetAlly;
+
+  return (
+    <group position={[unit.position.x, unit.position.y, unit.position.z]}>
       <Billboard follow>
         <MemoHealthBar unit={unit} />
         <MemoUnitLabel unit={unit} showAiState={showAiState} />
@@ -917,42 +836,218 @@ function UnitModel({
   );
 }
 
+const MemoUnitOverlays = memo(
+  UnitOverlays,
+  (previous, next) =>
+    previous.unit === next.unit &&
+    previous.isSelected === next.isSelected &&
+    previous.showAiState === next.showAiState &&
+    previous.disabled === next.disabled,
+);
+
+function UnitModel({
+  unit,
+  isSelected,
+  showAiState,
+  onClick,
+  attachmentDebug,
+  onAttachmentDebugReport,
+  locomotionDebug,
+  onAnimationDebugReport,
+}: {
+  unit: CombatRenderUnit;
+  isSelected: boolean;
+  showAiState: boolean;
+  onClick: (unitId: string) => void;
+  attachmentDebug?: AttachmentDebugOptions;
+  onAttachmentDebugReport?: (unitId: string, report: AttachmentDebugReport | null) => void;
+  locomotionDebug?: LocomotionSceneDebugOptions;
+  onAnimationDebugReport?: (unitId: string, report: AnimationDebugReport | null) => void;
+}) {
+  const definition = prototypeCatalog.units[unit.definitionId];
+  const model = useCharacterModel(definition.presentationId);
+  const rig = useCharacterRig(model, unit.definitionId);
+  const attachmentSystem = useAttachmentSystem(rig);
+  const animatorRef = useRef<CharacterAnimator | null>(null);
+  const animationAdapterRef = useRef(new AnimationAdapter());
+  const lastAnimationReportRef = useRef<string | null>(null);
+  const lastAttachmentReportRevisionRef = useRef<number | null>(null);
+
+  const weapon = prototypeCatalog.weapons[unit.weaponId];
+  const rigProfileId = getRigProfileIdForPresentation(definition.presentationId);
+  const equipmentView = useMemo(
+    () => resolveVisibleEquipmentView(unit.equipmentState, rigProfileId, weapon.kind, attachmentDebug?.overrides ?? {}),
+    [attachmentDebug?.overrides, rigProfileId, unit.equipmentRevision, unit.equipmentState, weapon.kind],
+  );
+  const stanceFamily = equipmentView.stanceFamily;
+  const inspectThisUnit = attachmentDebug?.inspectUnitId === unit.id;
+  const shouldCollectAnimationReports = !!locomotionDebug?.collectAnimationReports && !!onAnimationDebugReport;
+  const shouldCollectAttachmentReports = !!attachmentDebug?.collectReports && !!onAttachmentDebugReport;
+  const shouldRenderVectors =
+    locomotionDebug?.vectorMode === "all" ||
+    (locomotionDebug?.vectorMode === "selected" && (isSelected || inspectThisUnit));
+  const attackWindowMs = Math.min(260, weapon.cooldownMs * 0.24);
+  const animatorFrame = useMemo(
+    () =>
+      model
+        ? animationAdapterRef.current.buildFrame(
+            {
+              locomotion: unit.locomotion,
+              presentation: unit.presentation,
+              stanceFamily,
+              isDead: unit.isDead,
+              isDowned: unit.isDowned,
+              isCasting: unit.isCasting,
+              isAttacking: unit.basicCooldownMs >= weapon.cooldownMs - attackWindowMs,
+            },
+            model.clipRegistry,
+          )
+        : null,
+    [attackWindowMs, model, stanceFamily, unit.basicCooldownMs, unit.isCasting, unit.isDead, unit.isDowned, unit.locomotion, unit.presentation, weapon.cooldownMs],
+  );
+
+  useEffect(() => {
+    if (!model || !rig) {
+      animatorRef.current?.dispose();
+      animatorRef.current = null;
+      return;
+    }
+
+    const animator = new CharacterAnimator(rig.skeletonRoot, model.clipRegistry);
+    animatorRef.current = animator;
+
+    return () => {
+      animator.dispose();
+      animatorRef.current = null;
+    };
+  }, [model, rig]);
+
+  useFrame((_, delta) => {
+    if (!animatorRef.current || !animatorFrame) {
+      return;
+    }
+
+    animatorRef.current.applyFrame(animatorFrame, delta, !locomotionDebug?.disableAnimation);
+    if (!shouldCollectAnimationReports || !model || !onAnimationDebugReport) {
+      return;
+    }
+
+    const activeBaseClip = locomotionDebug?.disableAnimation
+      ? animatorFrame.clipId
+      : animatorRef.current.getActiveClipId();
+    const activeReport = activeBaseClip ? model.normalizationDiagnostics[activeBaseClip] : null;
+    const nextSignature = `${activeBaseClip ?? "none"}|${activeReport?.summary.join(",") ?? "none"}`;
+
+    if (nextSignature !== lastAnimationReportRef.current) {
+      lastAnimationReportRef.current = nextSignature;
+      onAnimationDebugReport(unit.id, {
+        unitId: unit.id,
+        activeBaseClip,
+        normalizedClipId: unit.presentation.normalizedClipId,
+        normalizationSummary: activeReport?.summary ?? [],
+      });
+    }
+  });
+
+  useEffect(() => {
+    if (!onAnimationDebugReport) {
+      return;
+    }
+    if (!shouldCollectAnimationReports) {
+      lastAnimationReportRef.current = null;
+      onAnimationDebugReport(unit.id, null);
+      return;
+    }
+    return () => {
+      onAnimationDebugReport(unit.id, null);
+    };
+  }, [onAnimationDebugReport, shouldCollectAnimationReports, unit.id]);
+
+  useEffect(() => {
+    if (!onAttachmentDebugReport) {
+      return;
+    }
+
+    if (!shouldCollectAttachmentReports || !inspectThisUnit || !rig) {
+      lastAttachmentReportRevisionRef.current = null;
+      onAttachmentDebugReport(unit.id, null);
+      return;
+    }
+
+    if (lastAttachmentReportRevisionRef.current === unit.equipmentRevision) {
+      return;
+    }
+    lastAttachmentReportRevisionRef.current = unit.equipmentRevision;
+
+    onAttachmentDebugReport(
+      unit.id,
+      buildAttachmentDebugReport({
+        unitId: unit.id,
+        unitName: unit.name,
+        adapter: rig.adapter,
+        equipmentView,
+      }),
+    );
+
+    return () => {
+      lastAttachmentReportRevisionRef.current = null;
+      onAttachmentDebugReport(unit.id, null);
+    };
+  }, [
+    equipmentView,
+    inspectThisUnit,
+    onAttachmentDebugReport,
+    rig,
+    shouldCollectAttachmentReports,
+    unit.equipmentRevision,
+    unit.id,
+    unit.name,
+  ]);
+
+  return (
+    <>
+      <MemoUnitRigActor rig={rig} unit={unit} onClick={onClick} />
+      <SkeletonDebugHelper root={rig?.skeletonRoot ?? null} enabled={!!inspectThisUnit && !!attachmentDebug?.showSkeleton} />
+      <SocketDebugHelpers rig={rig} enabled={!!inspectThisUnit && !!attachmentDebug?.showSockets} />
+      <MemoUnitAttachments
+        attachmentSystem={attachmentSystem}
+        unit={unit}
+        equipmentView={equipmentView}
+        inspectThisUnit={inspectThisUnit}
+        attachmentDebug={attachmentDebug}
+        disabled={!!locomotionDebug?.disableAttachments}
+      />
+      <MemoUnitDebugVectors unit={unit} enabled={shouldRenderVectors} />
+      <MemoUnitOverlays
+        unit={unit}
+        isSelected={isSelected}
+        showAiState={showAiState}
+        disabled={!!locomotionDebug?.disableOverlays}
+      />
+    </>
+  );
+}
+
 const MemoUnitModel = memo(
   UnitModel,
   (previous, next) =>
+    previous.unit === next.unit &&
     previous.isSelected === next.isSelected &&
-    previous.unit.id === next.unit.id &&
-    previous.unit.definitionId === next.unit.definitionId &&
-    previous.unit.position.x === next.unit.position.x &&
-    previous.unit.position.y === next.unit.position.y &&
-    previous.unit.position.z === next.unit.position.z &&
-    previous.unit.facingYaw === next.unit.facingYaw &&
-    previous.unit.velocity.x === next.unit.velocity.x &&
-    previous.unit.velocity.z === next.unit.velocity.z &&
-    previous.unit.moveIntent.x === next.unit.moveIntent.x &&
-    previous.unit.moveIntent.z === next.unit.moveIntent.z &&
-    previous.unit.equipmentState.equipState === next.unit.equipmentState.equipState &&
-    previous.unit.equipmentState.activeSlots.main_hand === next.unit.equipmentState.activeSlots.main_hand &&
-    previous.unit.equipmentState.activeSlots.off_hand === next.unit.equipmentState.activeSlots.off_hand &&
-    previous.unit.equipmentState.storageSlots.back === next.unit.equipmentState.storageSlots.back &&
-    previous.unit.equipmentState.storageSlots.hip_left === next.unit.equipmentState.storageSlots.hip_left &&
-    previous.unit.equipmentState.storageSlots.hip_right === next.unit.equipmentState.storageSlots.hip_right &&
-    previous.unit.currentHp === next.unit.currentHp &&
-    previous.unit.basicCooldownMs === next.unit.basicCooldownMs &&
-    previous.unit.isDead === next.unit.isDead &&
-    previous.unit.isDowned === next.unit.isDowned &&
-    previous.unit.castState?.spellId === next.unit.castState?.spellId &&
     previous.showAiState === next.showAiState &&
     previous.attachmentDebug?.inspectUnitId === next.attachmentDebug?.inspectUnitId &&
     previous.attachmentDebug?.showSockets === next.attachmentDebug?.showSockets &&
     previous.attachmentDebug?.showMarkers === next.attachmentDebug?.showMarkers &&
     previous.attachmentDebug?.showSkeleton === next.attachmentDebug?.showSkeleton &&
+    previous.attachmentDebug?.collectReports === next.attachmentDebug?.collectReports &&
     previous.attachmentDebug?.overrides === next.attachmentDebug?.overrides &&
-    previous.unit.aiState.stateLabel === next.unit.aiState.stateLabel &&
-    previous.unit.statuses.map((status) => status.id).join(",") === next.unit.statuses.map((status) => status.id).join(","),
+    previous.locomotionDebug?.vectorMode === next.locomotionDebug?.vectorMode &&
+    previous.locomotionDebug?.disableAnimation === next.locomotionDebug?.disableAnimation &&
+    previous.locomotionDebug?.disableAttachments === next.locomotionDebug?.disableAttachments &&
+    previous.locomotionDebug?.disableOverlays === next.locomotionDebug?.disableOverlays &&
+    previous.locomotionDebug?.collectAnimationReports === next.locomotionDebug?.collectAnimationReports,
 );
 
-function ArenaGround({ snapshot }: { snapshot: CombatSnapshot }) {
+function ArenaGround({ snapshot }: { snapshot: CombatRenderSnapshot }) {
   const ground = useModelAsset(snapshot.arena.groundModelUrl, {
     x: snapshot.arena.bounds.width,
     y: 0.45,
@@ -986,7 +1081,7 @@ const MemoArenaGround = memo(
     previous.snapshot.arena.bounds.depth === next.snapshot.arena.bounds.depth,
 );
 
-function ArenaObstacles({ snapshot }: { snapshot: CombatSnapshot }) {
+function ArenaObstacles({ snapshot }: { snapshot: CombatRenderSnapshot }) {
   return (
     <>
       {snapshot.arena.obstacles.map((obstacle) => (
@@ -1001,7 +1096,7 @@ const MemoArenaObstacles = memo(
   (previous, next) => previous.snapshot.arena.obstacles === next.snapshot.arena.obstacles,
 );
 
-function ArenaObstacleModel({ obstacle }: { obstacle: CombatSnapshot["arena"]["obstacles"][number] }) {
+function ArenaObstacleModel({ obstacle }: { obstacle: CombatRenderSnapshot["arena"]["obstacles"][number] }) {
   const model = useModelAsset(obstacle.modelUrl, obstacle.size);
 
   if (!model) {
@@ -1057,7 +1152,7 @@ function SpellPreview({ preview }: { preview: GroundPreviewState }) {
   );
 }
 
-function Zones({ snapshot }: { snapshot: CombatSnapshot }) {
+function Zones({ snapshot }: { snapshot: CombatRenderSnapshot }) {
   return (
     <>
       {snapshot.zones.map((zone) => (
@@ -1070,7 +1165,7 @@ function Zones({ snapshot }: { snapshot: CombatSnapshot }) {
   );
 }
 
-function Projectiles({ snapshot }: { snapshot: CombatSnapshot }) {
+function Projectiles({ snapshot }: { snapshot: CombatRenderSnapshot }) {
   return (
     <>
       {snapshot.projectiles.map((projectile) => (
@@ -1087,7 +1182,7 @@ function Projectiles({ snapshot }: { snapshot: CombatSnapshot }) {
   );
 }
 
-function FloatingFeedbackEntry({ entry }: { entry: CombatSnapshot["floatingTexts"][number] }) {
+function FloatingFeedbackEntry({ entry }: { entry: CombatRenderSnapshot["floatingTexts"][number] }) {
   const textureUrl =
     entry.kind === "damage"
       ? assetUrls.vfx.hitSlash
@@ -1148,7 +1243,7 @@ function FloatingFeedbackEntry({ entry }: { entry: CombatSnapshot["floatingTexts
   );
 }
 
-function FloatingTexts({ snapshot }: { snapshot: CombatSnapshot }) {
+function FloatingTexts({ snapshot }: { snapshot: CombatRenderSnapshot }) {
   return (
     <>
       {snapshot.floatingTexts.map((entry) => (
@@ -1158,18 +1253,22 @@ function FloatingTexts({ snapshot }: { snapshot: CombatSnapshot }) {
   );
 }
 
-export function CombatScene({
-  snapshot,
+function CombatSceneImpl({
+  authority,
   cameraOrbit,
   onGroundClick,
   onGroundHover,
   onUnitClick,
   groundPreview,
   reviveIndicatorUnitId,
+  showAiStateText,
   onPerformanceSample,
   attachmentDebug,
   onAttachmentDebugReport,
+  locomotionDebug,
+  onAnimationDebugReport,
 }: CombatSceneProps) {
+  const snapshot = useCombatRenderSnapshot(authority);
   const boundsPoints: [number, number, number][] = useMemo(
     () => [
       [-snapshot.arena.bounds.width / 2, 0, -snapshot.arena.bounds.depth / 2],
@@ -1180,12 +1279,25 @@ export function CombatScene({
     ],
     [snapshot.arena.bounds.depth, snapshot.arena.bounds.width],
   );
+  const leader = useMemo(
+    () => snapshot.units.find((unit) => unit.id === snapshot.leaderId) ?? null,
+    [snapshot.leaderId, snapshot.units],
+  );
+  const selectedTarget = useMemo(
+    () => (snapshot.selectedTargetId ? snapshot.units.find((unit) => unit.id === snapshot.selectedTargetId) ?? null : null),
+    [snapshot.selectedTargetId, snapshot.units],
+  );
   const reviveTarget =
     reviveIndicatorUnitId ? snapshot.units.find((unit) => unit.id === reviveIndicatorUnitId) ?? null : null;
 
   return (
     <>
-      <CameraRig snapshot={snapshot} cameraOrbit={cameraOrbit} />
+      <CameraRig
+        leader={leader}
+        selectedTarget={selectedTarget}
+        obstacles={snapshot.arena.obstacles}
+        cameraOrbit={cameraOrbit}
+      />
       <color attach="background" args={["#e7dbc4"]} />
       <fog attach="fog" args={["#e7dbc4", 20, 44]} />
       <ambientLight intensity={1.15} />
@@ -1237,10 +1349,12 @@ export function CombatScene({
           key={unit.id}
           unit={unit}
           isSelected={snapshot.selectedTargetId === unit.id}
-          showAiState={snapshot.debugFlags.showAi}
+          showAiState={showAiStateText && snapshot.debugFlags.showAi}
           onClick={onUnitClick}
           attachmentDebug={attachmentDebug}
           onAttachmentDebugReport={onAttachmentDebugReport}
+          locomotionDebug={locomotionDebug}
+          onAnimationDebugReport={onAnimationDebugReport}
         />
       ))}
 
@@ -1261,3 +1375,5 @@ export function CombatScene({
     </>
   );
 }
+
+export const CombatScene = memo(CombatSceneImpl);

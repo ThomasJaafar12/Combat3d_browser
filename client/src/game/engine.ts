@@ -1,3 +1,4 @@
+import { featureFlags } from "@/config/featureFlags";
 import { prototypeCatalog } from "@/game/content";
 import type {
   BehaviorProfileId,
@@ -11,23 +12,32 @@ import type {
   UnitArchetypeId,
   Vec3,
 } from "@/game/defs";
-import { equipmentSystem } from "@/game/equipment/system";
+import { equipmentSystem, resolveStanceFamily } from "@/game/equipment/system";
 import { arenaDefinition } from "@/game/map";
 import { resolveArenaPosition } from "@/game/environment/collision";
+import { FacingController } from "@/game/locomotion/FacingController";
+import { IntentController } from "@/game/locomotion/IntentController";
+import { CharacterMotor } from "@/game/locomotion/CharacterMotor";
+import { locomotionV2Config } from "@/game/locomotion/config";
+import { LocomotionResolver } from "@/game/locomotion/LocomotionResolver";
 import {
   addVec3,
   clamp,
   directionToYaw,
   distance2D,
+  inverseRotateVectorByYaw,
   length2D,
   normalize2D,
   roundVec3,
   scaleVec3,
+  shortestAngleDelta,
   subVec3,
   vec3,
   yawToDirection,
 } from "@/game/math";
 import type {
+  CombatRenderSnapshot,
+  CombatRenderUnit,
   CombatSnapshot,
   DebugFlag,
   FloatingText,
@@ -40,8 +50,15 @@ import type {
   RuntimeUnit,
   RuntimeZone,
 } from "@/game/runtime";
+import type {
+  PlayerInputCommand,
+  RuntimeInputTelemetry,
+  RuntimeLocomotionTelemetry,
+  RuntimePresentationTelemetry,
+} from "@/game/locomotion/types";
 
 type Listener = (snapshot: CombatSnapshot) => void;
+type RenderListener = (snapshot: CombatRenderSnapshot) => void;
 
 const RESOURCE_REGEN_PER_SECOND = 7;
 const DOWNED_BLEED_OUT_MS = 18000;
@@ -51,8 +68,134 @@ const AI_DECISION_INTERVAL_MS = 220;
 const BASIC_ATTACK_BUFFER_MS = 120;
 const SNAPSHOT_EMIT_INTERVAL_MS = 1000 / 60;
 
+interface LocomotionDebugOptions {
+  disableFacingInterpolation: boolean;
+}
+
+const createPlayerCommand = (): PlayerInputCommand => ({
+  rawInputX: 0,
+  rawInputY: 0,
+  cameraYaw: 0,
+  isSprinting: false,
+  isAiming: false,
+  timestampMs: 0,
+});
+
+const createInputTelemetry = (): RuntimeInputTelemetry => ({
+  rawInputX: 0,
+  rawInputY: 0,
+  desiredMagnitude: 0,
+  moveIntentCameraSpace: vec3(),
+  moveIntentWorldSpace: vec3(),
+  timestampMs: 0,
+});
+
+const createPresentationTelemetry = (): RuntimePresentationTelemetry => ({
+  activeBaseClip: null,
+  normalizedClipId: null,
+  normalizationSummary: [],
+});
+
+const createLocomotionTelemetry = (facingYaw: number): RuntimeLocomotionTelemetry => ({
+  locomotionMode: "idle",
+  facingMode: "lockedFacing",
+  desiredWorldMoveDirection: vec3(),
+  desiredLocalMoveDirection: vec3(),
+  currentYaw: facingYaw,
+  targetYaw: facingYaw,
+  yawDelta: 0,
+  desiredSpeed: 0,
+  actualLocalVelocity: vec3(),
+  speedNormalized: 0,
+  isMoving: false,
+  isSprinting: false,
+  isAiming: false,
+  shouldRotate: false,
+  shouldTranslate: false,
+  input: createInputTelemetry(),
+});
+
+const cloneEquipmentState = (equipmentState: RuntimeUnit["equipmentState"]): RuntimeUnit["equipmentState"] => ({
+  equipState: equipmentState.equipState,
+  activeSlots: { ...equipmentState.activeSlots },
+  storageSlots: { ...equipmentState.storageSlots },
+  pendingTransfer: equipmentState.pendingTransfer ? { ...equipmentState.pendingTransfer } : null,
+});
+
+const cloneRenderStatuses = (statuses: RuntimeUnit["statuses"]): CombatRenderUnit["statuses"] =>
+  statuses.map((status) => ({
+    id: status.id,
+    remainingMs: status.remainingMs,
+  }));
+
+const sameVec3 = (left: Vec3, right: Vec3) => left.x === right.x && left.y === right.y && left.z === right.z;
+
+const sameStringArray = (left: string[], right: string[]) => {
+  if (left.length !== right.length) {
+    return false;
+  }
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] !== right[index]) {
+      return false;
+    }
+  }
+  return true;
+};
+
+const cloneRenderLocomotion = (locomotion: RuntimeUnit["locomotion"]): CombatRenderUnit["locomotion"] => ({
+  ...locomotion,
+  desiredWorldMoveDirection: roundVec3(locomotion.desiredWorldMoveDirection),
+  desiredLocalMoveDirection: roundVec3(locomotion.desiredLocalMoveDirection),
+  actualLocalVelocity: roundVec3(locomotion.actualLocalVelocity),
+  input: {
+    ...locomotion.input,
+    moveIntentCameraSpace: roundVec3(locomotion.input.moveIntentCameraSpace),
+    moveIntentWorldSpace: roundVec3(locomotion.input.moveIntentWorldSpace),
+  },
+});
+
+const cloneRenderPresentation = (presentation: RuntimeUnit["presentation"]): CombatRenderUnit["presentation"] => ({
+  ...presentation,
+  normalizationSummary: [...presentation.normalizationSummary],
+});
+
+const sameRenderStatuses = (previous: CombatRenderUnit["statuses"], current: RuntimeUnit["statuses"]) => {
+  if (previous.length !== current.length) {
+    return false;
+  }
+  for (let index = 0; index < previous.length; index += 1) {
+    if (previous[index].id !== current[index].id || previous[index].remainingMs !== current[index].remainingMs) {
+      return false;
+    }
+  }
+  return true;
+};
+
+const sameRenderLocomotion = (previous: CombatRenderUnit["locomotion"], current: RuntimeUnit["locomotion"]) =>
+  previous.locomotionMode === current.locomotionMode &&
+  previous.facingMode === current.facingMode &&
+  sameVec3(previous.desiredWorldMoveDirection, roundVec3(current.desiredWorldMoveDirection)) &&
+  sameVec3(previous.desiredLocalMoveDirection, roundVec3(current.desiredLocalMoveDirection)) &&
+  previous.currentYaw === current.currentYaw &&
+  previous.targetYaw === current.targetYaw &&
+  previous.yawDelta === current.yawDelta &&
+  previous.desiredSpeed === current.desiredSpeed &&
+  sameVec3(previous.actualLocalVelocity, roundVec3(current.actualLocalVelocity)) &&
+  previous.speedNormalized === current.speedNormalized &&
+  previous.isMoving === current.isMoving &&
+  previous.isSprinting === current.isSprinting &&
+  previous.isAiming === current.isAiming &&
+  previous.shouldRotate === current.shouldRotate &&
+  previous.shouldTranslate === current.shouldTranslate;
+
+const sameRenderPresentation = (previous: CombatRenderUnit["presentation"], current: RuntimeUnit["presentation"]) =>
+  previous.activeBaseClip === current.activeBaseClip &&
+  previous.normalizedClipId === current.normalizedClipId &&
+  sameStringArray(previous.normalizationSummary, current.normalizationSummary);
+
 export class CombatAuthority {
   private listeners = new Set<Listener>();
+  private renderListeners = new Set<RenderListener>();
   private idCounter = 0;
   private unitsById = new Map<string, RuntimeUnit>();
   private timeMs = 0;
@@ -92,11 +235,23 @@ export class CombatAuthority {
     allies: {},
     spellUpgrades: {},
   };
+  private readonly playerIntentController = new IntentController(locomotionV2Config.input);
+  private readonly playerLocomotionResolver = new LocomotionResolver(locomotionV2Config.resolver);
+  private readonly playerMotor = new CharacterMotor(locomotionV2Config.motor);
+  private readonly playerFacing = new FacingController(locomotionV2Config.facing);
+  private playerMotorState = this.playerMotor.createState(arenaDefinition.playerStart);
+  private playerFacingState = this.playerFacing.createState(0);
+  private playerCommand = createPlayerCommand();
+  private locomotionDebugOptions: LocomotionDebugOptions = {
+    disableFacingInterpolation: false,
+  };
   private playerMoveIntent = vec3();
   private playerAimYaw = 0;
   private queuedBasicAttack = false;
   private activeReviveTargetId: string | null = null;
   private lastSnapshotEmitMs = Number.NEGATIVE_INFINITY;
+  private previousRenderSnapshot: CombatRenderSnapshot | null = null;
+  private cachedRenderSnapshot: CombatRenderSnapshot | null = null;
 
   constructor() {
     this.resetEncounter();
@@ -108,6 +263,14 @@ export class CombatAuthority {
 
     return () => {
       this.listeners.delete(listener);
+    };
+  }
+
+  subscribeRender(listener: RenderListener) {
+    this.renderListeners.add(listener);
+
+    return () => {
+      this.renderListeners.delete(listener);
     };
   }
 
@@ -126,12 +289,27 @@ export class CombatAuthority {
         position: roundVec3(unit.position),
         velocity: roundVec3(unit.velocity),
         moveIntent: roundVec3(unit.moveIntent),
-        equipmentState: {
-          equipState: unit.equipmentState.equipState,
-          activeSlots: { ...unit.equipmentState.activeSlots },
-          storageSlots: { ...unit.equipmentState.storageSlots },
-          pendingTransfer: unit.equipmentState.pendingTransfer ? { ...unit.equipmentState.pendingTransfer } : null,
+        inputTelemetry: {
+          ...unit.inputTelemetry,
+          moveIntentCameraSpace: roundVec3(unit.inputTelemetry.moveIntentCameraSpace),
+          moveIntentWorldSpace: roundVec3(unit.inputTelemetry.moveIntentWorldSpace),
         },
+        locomotion: {
+          ...unit.locomotion,
+          desiredWorldMoveDirection: roundVec3(unit.locomotion.desiredWorldMoveDirection),
+          desiredLocalMoveDirection: roundVec3(unit.locomotion.desiredLocalMoveDirection),
+          actualLocalVelocity: roundVec3(unit.locomotion.actualLocalVelocity),
+          input: {
+            ...unit.locomotion.input,
+            moveIntentCameraSpace: roundVec3(unit.locomotion.input.moveIntentCameraSpace),
+            moveIntentWorldSpace: roundVec3(unit.locomotion.input.moveIntentWorldSpace),
+          },
+        },
+        presentation: {
+          ...unit.presentation,
+          normalizationSummary: [...unit.presentation.normalizationSummary],
+        },
+        equipmentState: cloneEquipmentState(unit.equipmentState),
         statuses: unit.statuses.map((status) => ({ ...status })),
         spellCooldowns: { ...unit.spellCooldowns },
         loadoutSpellIds: [...unit.loadoutSpellIds],
@@ -187,6 +365,96 @@ export class CombatAuthority {
     };
   }
 
+  getRenderSnapshot(): CombatRenderSnapshot {
+    if (this.cachedRenderSnapshot) {
+      return this.cachedRenderSnapshot;
+    }
+    this.cachedRenderSnapshot = this.buildRenderSnapshot();
+    return this.cachedRenderSnapshot;
+  }
+
+  private buildRenderSnapshot(): CombatRenderSnapshot {
+    const previousUnitsById = new Map(this.previousRenderSnapshot?.units.map((unit) => [unit.id, unit]) ?? []);
+    const units = [...this.unitsById.values()].map((unit) => {
+      const previous = previousUnitsById.get(unit.id);
+      const roundedPosition = roundVec3(unit.position);
+      const roundedVelocity = roundVec3(unit.velocity);
+
+      if (
+        previous &&
+        previous.definitionId === unit.definitionId &&
+        previous.name === unit.name &&
+        previous.faction === unit.faction &&
+        previous.controller === unit.controller &&
+        sameVec3(previous.position, roundedPosition) &&
+        previous.facingYaw === unit.facingYaw &&
+        sameVec3(previous.velocity, roundedVelocity) &&
+        previous.currentHp === unit.currentHp &&
+        previous.weaponId === unit.weaponId &&
+        previous.equipmentRevision === unit.equipmentRevision &&
+        previous.basicCooldownMs === unit.basicCooldownMs &&
+        previous.aiStateLabel === unit.aiState.stateLabel &&
+        previous.isCasting === !!unit.castState &&
+        previous.isDowned === unit.isDowned &&
+        previous.isDead === unit.isDead &&
+        sameRenderLocomotion(previous.locomotion, unit.locomotion) &&
+        sameRenderPresentation(previous.presentation, unit.presentation) &&
+        sameRenderStatuses(previous.statuses, unit.statuses)
+      ) {
+        return previous;
+      }
+
+      return {
+        id: unit.id,
+        definitionId: unit.definitionId,
+        name: unit.name,
+        faction: unit.faction,
+        controller: unit.controller,
+        position: roundedPosition,
+        facingYaw: unit.facingYaw,
+        velocity: roundedVelocity,
+        currentHp: unit.currentHp,
+        weaponId: unit.weaponId,
+        equipmentState: cloneEquipmentState(unit.equipmentState),
+        equipmentRevision: unit.equipmentRevision,
+        basicCooldownMs: unit.basicCooldownMs,
+        locomotion: cloneRenderLocomotion(unit.locomotion),
+        presentation: cloneRenderPresentation(unit.presentation),
+        statuses: cloneRenderStatuses(unit.statuses),
+        aiStateLabel: unit.aiState.stateLabel,
+        isCasting: !!unit.castState,
+        isDowned: unit.isDowned,
+        isDead: unit.isDead,
+      };
+    });
+
+    const snapshot: CombatRenderSnapshot = {
+      phase: this.phase,
+      timeMs: this.timeMs,
+      leaderId: this.leaderId,
+      selectedTargetId: this.selectedTargetId,
+      units,
+      projectiles: this.projectiles.map((projectile) => ({
+        ...projectile,
+        position: roundVec3(projectile.position),
+        direction: roundVec3(projectile.direction),
+      })),
+      zones: this.zones.map((zone) => ({
+        ...zone,
+        center: roundVec3(zone.center),
+      })),
+      floatingTexts: this.floatingTexts.map((entry) => ({
+        ...entry,
+        position: roundVec3(entry.position),
+      })),
+      arena: arenaDefinition,
+      debugFlags: { ...this.debugFlags },
+    };
+
+    this.previousRenderSnapshot = snapshot;
+    return snapshot;
+  }
+
   resetEncounter() {
     this.idCounter = 0;
     this.unitsById.clear();
@@ -206,12 +474,21 @@ export class CombatAuthority {
       allies: {},
       spellUpgrades: {},
     };
+    this.playerCommand = createPlayerCommand();
+    this.playerMoveIntent = vec3();
+    this.playerAimYaw = 0;
+    this.playerMotorState = this.playerMotor.createState(arenaDefinition.playerStart);
+    this.playerFacingState = this.playerFacing.createState(0);
     this.totalXp = 0;
     this.level = 1;
     this.waveNumber = 1;
+    this.previousRenderSnapshot = null;
+    this.cachedRenderSnapshot = null;
 
     const leader = this.createUnit("leader_captain", arenaDefinition.playerStart);
     this.leaderId = leader.id;
+    this.playerMotor.teleport(this.playerMotorState, arenaDefinition.playerStart);
+    this.playerFacing.snapYaw(this.playerFacingState, leader.facingYaw);
     this.spellbookIds = [...leader.spellbookIds];
     this.activeLoadoutIds = [...leader.loadoutSpellIds];
     this.unitsById.set(leader.id, leader);
@@ -274,6 +551,7 @@ export class CombatAuthority {
 
     const definition = prototypeCatalog.units[leader.definitionId];
     leader.equipmentState = equipmentSystem.toggleDefaultLoadout(leader.equipmentState, definition.equipmentLoadout, this.timeMs);
+    leader.equipmentRevision += 1;
     this.emit();
     return true;
   }
@@ -298,9 +576,31 @@ export class CombatAuthority {
     this.emit();
   }
 
+  setPlayerCommand(command: PlayerInputCommand) {
+    this.playerCommand = {
+      ...command,
+      timestampMs: command.timestampMs,
+    };
+    this.playerMoveIntent = vec3(command.rawInputX, 0, command.rawInputY);
+    this.playerAimYaw = command.cameraYaw;
+  }
+
   setPlayerIntent(moveInput: Vec3, aimYaw: number) {
-    this.playerMoveIntent = { ...moveInput, y: 0 };
-    this.playerAimYaw = aimYaw;
+    this.setPlayerCommand({
+      rawInputX: moveInput.x,
+      rawInputY: moveInput.z,
+      cameraYaw: aimYaw,
+      isSprinting: false,
+      isAiming: false,
+      timestampMs: this.timeMs,
+    });
+  }
+
+  setLocomotionDebugOptions(options: Partial<LocomotionDebugOptions>) {
+    this.locomotionDebugOptions = {
+      ...this.locomotionDebugOptions,
+      ...options,
+    };
   }
 
   commandLeaderBasicAttack(targetUnitId = this.selectedTargetId) {
@@ -631,7 +931,7 @@ export class CombatAuthority {
       return false;
     }
 
-    target.position = this.resolvePosition(target, addVec3(leaderPosition, vec3(1.2, 0, 0.8)));
+    this.setUnitPosition(target, this.resolvePosition(target, addVec3(leaderPosition, vec3(1.2, 0, 0.8))), true);
     this.applyDamage(target.id, this.getEffectiveStats(target).maxHp + 999, this.leaderId);
     return true;
   }
@@ -672,6 +972,9 @@ export class CombatAuthority {
     }
 
     this.lastSnapshotEmitMs = this.timeMs;
+    this.cachedRenderSnapshot = this.buildRenderSnapshot();
+    const renderSnapshot = this.cachedRenderSnapshot;
+    this.renderListeners.forEach((listener) => listener(renderSnapshot));
     const snapshot = this.getSnapshot();
     this.listeners.forEach((listener) => listener(snapshot));
     this.presentationEvents = [];
@@ -679,6 +982,18 @@ export class CombatAuthority {
 
   private tick(deltaMs: number) {
     this.timeMs += deltaMs;
+
+    // Pre-set leader moveIntent so any forced emit() during ticking
+    // (e.g. from projectile damage) includes the current input state.
+    if (this.phase === "loadout" || this.phase === "battle") {
+      const leader = this.unitsById.get(this.leaderId);
+      if (leader && !leader.isDead && !leader.isDowned) {
+        leader.moveIntent = length2D(this.playerMoveIntent) > 0.05
+          ? { ...this.playerMoveIntent, y: 0 }
+          : vec3();
+      }
+    }
+
     this.tickFloatingTexts(deltaMs);
     this.tickUnits(deltaMs);
     this.tickProjectiles(deltaMs);
@@ -694,6 +1009,8 @@ export class CombatAuthority {
       this.updateReviveChannel(deltaMs);
       this.evaluateEndStates();
     }
+
+    this.syncPostTickLocomotionTelemetry();
   }
 
   private tickUnits(deltaMs: number) {
@@ -787,15 +1104,46 @@ export class CombatAuthority {
       return;
     }
 
-    leader.moveIntent = { ...this.playerMoveIntent, y: 0 };
-    const hasMoveIntent = length2D(this.playerMoveIntent) > 0.05;
-    if (hasMoveIntent) {
-      leader.facingYaw = this.playerAimYaw;
-      const worldMove = this.rotateInputByYaw(this.playerMoveIntent, this.playerAimYaw);
-      this.moveUnitAlongDirection(leader, worldMove, deltaMs, 1, false);
+    if (!featureFlags.locomotionV2) {
+      leader.moveIntent = { ...this.playerMoveIntent, y: 0 };
+      const hasMoveIntent = length2D(this.playerMoveIntent) > 0.05;
+      if (hasMoveIntent) {
+        this.setUnitFacingYaw(leader, this.playerAimYaw, true);
+        const worldMove = this.rotateInputByYaw(this.playerMoveIntent, this.playerAimYaw);
+        this.moveUnitAlongDirection(leader, worldMove, deltaMs, 1, false);
+      } else {
+        leader.velocity = vec3();
+        leader.moveIntent = vec3();
+      }
+      this.syncLegacyLocomotionTelemetry(leader);
     } else {
-      leader.velocity = vec3();
-      leader.moveIntent = vec3();
+      const stanceFamily = this.getUnitStanceFamily(leader);
+      const inputIntent = this.playerIntentController.sample(this.playerCommand, this.playerFacingState.currentYaw, {
+        cameraRelativeMovement: true,
+      });
+      const resolved = this.playerLocomotionResolver.resolve(inputIntent, stanceFamily, this.playerFacingState.currentYaw);
+
+      leader.moveIntent = inputIntent.hasMoveIntent ? { ...inputIntent.moveIntentCameraSpace } : vec3();
+
+      this.playerMotorState.position = { ...leader.position };
+      this.playerMotorState.velocity = { ...leader.velocity };
+      this.playerFacingState.currentYaw = leader.facingYaw;
+      this.playerFacingState.targetYaw = leader.locomotion.targetYaw;
+
+      this.playerMotor.step(this.playerMotorState, resolved, deltaMs / 1000, {
+        resolvePosition: (rawPosition) => this.resolvePosition(leader, rawPosition),
+      });
+      this.playerFacing.step(
+        this.playerFacingState,
+        resolved,
+        deltaMs / 1000,
+        !this.locomotionDebugOptions.disableFacingInterpolation,
+      );
+
+      this.setUnitPosition(leader, this.playerMotorState.position);
+      leader.velocity = { ...this.playerMotorState.velocity };
+      this.setUnitFacingYaw(leader, this.playerFacingState.currentYaw);
+      this.syncPlayerLocomotionTelemetry(leader, stanceFamily, inputIntent, resolved);
     }
 
     if (this.activeReviveTargetId) {
@@ -814,6 +1162,130 @@ export class CombatAuthority {
         }
       }
     }
+  }
+
+  private getUnitStanceFamily(unit: RuntimeUnit) {
+    return resolveStanceFamily(unit.equipmentState, prototypeCatalog.weapons[unit.weaponId].kind);
+  }
+
+  private setUnitFacingYaw(unit: RuntimeUnit, yaw: number, snapController = false) {
+    unit.facingYaw = yaw;
+    unit.locomotion.currentYaw = yaw;
+    if (unit.id === this.leaderId) {
+      if (snapController) {
+        this.playerFacing.snapYaw(this.playerFacingState, yaw, unit.locomotion.facingMode);
+      }
+      this.playerFacingState.currentYaw = yaw;
+      this.playerFacingState.targetYaw = yaw;
+    }
+  }
+
+  private setUnitPosition(unit: RuntimeUnit, position: Vec3, resetVelocity = false) {
+    unit.position = { ...position };
+    if (resetVelocity) {
+      unit.velocity = vec3();
+    }
+    if (unit.id === this.leaderId) {
+      if (resetVelocity) {
+        this.playerMotor.teleport(this.playerMotorState, position);
+      } else {
+        this.playerMotorState.position = { ...position };
+      }
+    }
+  }
+
+  private teleportUnit(unit: RuntimeUnit, position: Vec3) {
+    this.setUnitPosition(unit, position, true);
+  }
+
+  private syncLegacyLocomotionTelemetry(unit: RuntimeUnit) {
+    const stanceFamily = this.getUnitStanceFamily(unit);
+    const desiredWorldMoveDirection =
+      length2D(unit.velocity) > 0.001 ? normalize2D(unit.velocity) : vec3();
+    const desiredLocalMoveDirection = inverseRotateVectorByYaw(desiredWorldMoveDirection, unit.facingYaw);
+    unit.inputTelemetry = {
+      rawInputX: unit.moveIntent.x,
+      rawInputY: unit.moveIntent.z,
+      desiredMagnitude: Math.min(1, Math.hypot(unit.moveIntent.x, unit.moveIntent.z)),
+      moveIntentCameraSpace: { ...unit.moveIntent },
+      moveIntentWorldSpace: this.rotateInputByYaw(unit.moveIntent, unit.facingYaw),
+      timestampMs: this.timeMs,
+    };
+    unit.locomotion = {
+      ...unit.locomotion,
+      locomotionMode: length2D(unit.velocity) > 0.025 ? "move" : "idle",
+      facingMode: unit.controller === "player" ? "faceAimDirection" : "faceMoveDirection",
+      desiredWorldMoveDirection,
+      desiredLocalMoveDirection,
+      currentYaw: unit.facingYaw,
+      targetYaw: unit.facingYaw,
+      yawDelta: 0,
+      desiredSpeed: length2D(unit.velocity),
+      actualLocalVelocity: inverseRotateVectorByYaw(unit.velocity, unit.facingYaw),
+      speedNormalized:
+        this.getEffectiveStats(unit).moveSpeed > 0
+          ? Math.min(1, length2D(unit.velocity) / this.getEffectiveStats(unit).moveSpeed)
+          : 0,
+      isMoving: length2D(unit.velocity) > 0.025,
+      isSprinting: false,
+      isAiming: unit.controller === "player",
+      shouldRotate: length2D(unit.velocity) > 0.025,
+      shouldTranslate: length2D(unit.velocity) > 0.025,
+      input: { ...unit.inputTelemetry },
+    };
+    unit.presentation = {
+      ...unit.presentation,
+      normalizedClipId: `${unit.definitionId}:${stanceFamily}`,
+    };
+  }
+
+  private syncPlayerLocomotionTelemetry(
+    unit: RuntimeUnit,
+    stanceFamily: ReturnType<CombatAuthority["getUnitStanceFamily"]>,
+    inputIntent: ReturnType<IntentController["sample"]>,
+    resolved: ReturnType<LocomotionResolver["resolve"]>,
+  ) {
+    const actualLocalVelocity = inverseRotateVectorByYaw(unit.velocity, unit.facingYaw);
+    const speedNormalized = Math.min(1, length2D(unit.velocity) / locomotionV2Config.resolver.sprintSpeed);
+    unit.inputTelemetry = {
+      rawInputX: inputIntent.rawInputX,
+      rawInputY: inputIntent.rawInputY,
+      desiredMagnitude: inputIntent.desiredMagnitude,
+      moveIntentCameraSpace: { ...inputIntent.moveIntentCameraSpace },
+      moveIntentWorldSpace: { ...inputIntent.moveIntentWorldSpace },
+      timestampMs: inputIntent.timestampMs,
+    };
+    unit.locomotion = {
+      locomotionMode: resolved.locomotionMode,
+      facingMode: resolved.desiredFacingMode,
+      desiredWorldMoveDirection: { ...resolved.desiredWorldMoveDirection },
+      desiredLocalMoveDirection: { ...resolved.desiredLocalMoveDirection },
+      currentYaw: unit.facingYaw,
+      targetYaw: resolved.targetYaw,
+      yawDelta: shortestAngleDelta(unit.facingYaw, resolved.targetYaw),
+      desiredSpeed: resolved.desiredSpeed,
+      actualLocalVelocity,
+      speedNormalized,
+      isMoving: length2D(unit.velocity) > 0.025,
+      isSprinting: resolved.locomotionMode === "sprint",
+      isAiming: inputIntent.isAiming,
+      shouldRotate: resolved.shouldRotate,
+      shouldTranslate: resolved.shouldTranslate,
+      input: { ...unit.inputTelemetry },
+    };
+    unit.presentation = {
+      ...unit.presentation,
+      normalizedClipId: `${unit.definitionId}:${stanceFamily}`,
+    };
+  }
+
+  private syncPostTickLocomotionTelemetry() {
+    this.unitsById.forEach((unit) => {
+      if (unit.id === this.leaderId && featureFlags.locomotionV2) {
+        return;
+      }
+      this.syncLegacyLocomotionTelemetry(unit);
+    });
   }
 
   private updateCompanionAi(deltaMs: number) {
@@ -1117,7 +1589,7 @@ export class CombatAuthority {
 
     attacker.basicCooldownMs = this.debugFlags.noCooldowns ? 0 : weapon.cooldownMs;
     attacker.targetUnitId = target.id;
-    attacker.facingYaw = directionToYaw(subVec3(target.position, attacker.position));
+    this.setUnitFacingYaw(attacker, directionToYaw(subVec3(target.position, attacker.position)));
 
     if (weapon.projectileSpeed) {
       this.projectiles.push({
@@ -1191,10 +1663,10 @@ export class CombatAuthority {
     if (request.targetUnitId) {
       const target = this.unitsById.get(request.targetUnitId);
       if (target) {
-        caster.facingYaw = directionToYaw(subVec3(target.position, caster.position));
+        this.setUnitFacingYaw(caster, directionToYaw(subVec3(target.position, caster.position)));
       }
     } else if (request.direction && length2D(request.direction) > 0.01) {
-      caster.facingYaw = directionToYaw(request.direction);
+      this.setUnitFacingYaw(caster, directionToYaw(request.direction));
     }
 
     this.queuePresentationEvent({
@@ -1339,7 +1811,7 @@ export class CombatAuthority {
         this.applyStatus(target.id, effect.statusId ?? "battle_focus", effect.power, effect.durationMs ?? 2500, sourceUnitId);
       } else if (effect.type === "knockback" && source) {
         const away = normalize2D(subVec3(target.position, source.position));
-        target.position = this.resolvePosition(target, addVec3(target.position, scaleVec3(away, effect.power)));
+        this.setUnitPosition(target, this.resolvePosition(target, addVec3(target.position, scaleVec3(away, effect.power))));
       }
     });
   }
@@ -1398,10 +1870,10 @@ export class CombatAuthority {
     const speed = this.getEffectiveStats(unit).moveSpeed * speedScale * slowMultiplier;
     const movement = scaleVec3(normalized, speed * (deltaMs / 1000));
     const nextPosition = addVec3(unit.position, movement);
-    unit.position = this.resolvePosition(unit, nextPosition);
+    this.setUnitPosition(unit, this.resolvePosition(unit, nextPosition));
     unit.velocity = movement;
     if (updateFacing && length2D(normalized) > 0.01) {
-      unit.facingYaw = directionToYaw(normalized);
+      this.setUnitFacingYaw(unit, directionToYaw(normalized));
     }
   }
 
@@ -1527,6 +1999,7 @@ export class CombatAuthority {
     const behavior = this.createBehaviorSettings(definition.behaviorProfileId);
     const unitId = `${definitionId}_${this.nextId()}`;
     const order = this.createOrderState("follow_me");
+    const facingYaw = definition.faction === "enemy" ? Math.PI : 0;
 
     return {
       id: unitId,
@@ -1537,13 +2010,17 @@ export class CombatAuthority {
       group: definition.group,
       customGroup: null,
       position: { ...position },
-      facingYaw: definition.faction === "enemy" ? Math.PI : 0,
+      facingYaw,
       velocity: vec3(),
       moveIntent: vec3(),
+      inputTelemetry: createInputTelemetry(),
+      locomotion: createLocomotionTelemetry(facingYaw),
+      presentation: createPresentationTelemetry(),
       currentHp: definition.stats.maxHp,
       currentResource: definition.stats.maxResource,
       weaponId: definition.weaponId,
       equipmentState: equipmentSystem.createStateFromLoadout(definition.equipmentLoadout),
+      equipmentRevision: 0,
       loadoutSpellIds: [...definition.defaultLoadoutIds],
       spellbookIds: [...definition.spellbookIds],
       spellCooldowns: {},
@@ -1646,10 +2123,12 @@ export class CombatAuthority {
   private positionPartyForBattle() {
     const leader = this.unitsById.get(this.leaderId);
     if (leader) {
-      leader.position = { ...arenaDefinition.playerStart };
+      this.teleportUnit(leader, arenaDefinition.playerStart);
       leader.loadoutSpellIds = [...this.activeLoadoutIds];
       leader.currentHp = this.getEffectiveStats(leader).maxHp;
       leader.currentResource = this.getEffectiveStats(leader).maxResource;
+      this.playerMotor.teleport(this.playerMotorState, leader.position);
+      this.playerFacing.snapYaw(this.playerFacingState, leader.facingYaw);
     }
 
     this.recruitedCompanionIds.forEach((unitId, index) => {
@@ -1657,7 +2136,7 @@ export class CombatAuthority {
       if (!unit) {
         return;
       }
-      unit.position = { ...(arenaDefinition.companionSlots[index] ?? arenaDefinition.playerStart) };
+      this.teleportUnit(unit, arenaDefinition.companionSlots[index] ?? arenaDefinition.playerStart);
       unit.currentHp = this.getEffectiveStats(unit).maxHp;
       unit.currentResource = this.getEffectiveStats(unit).maxResource;
       unit.isDead = false;

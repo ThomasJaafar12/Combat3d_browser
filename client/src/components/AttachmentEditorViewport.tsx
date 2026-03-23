@@ -2,12 +2,15 @@ import { OrbitControls, TransformControls } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
+import { CharacterAnimator } from "@/game/animation/CharacterAnimator";
+import type { PresentationAnimationId } from "@/game/animation/types";
 import { useCharacterModel, useEquipmentModel } from "@/game/assets/loader";
+import { AttachmentSystem } from "@/game/character/AttachmentSystem";
+import { CharacterRig } from "@/game/character/CharacterRig";
 import type { CharacterPresentationId } from "@/game/defs";
-import { equipmentItemsById, getRigProfileIdForPresentation } from "@/game/equipment/catalog";
+import { equipmentItemsById } from "@/game/equipment/catalog";
 import type { ResolvedAttachmentProfile } from "@/game/equipment/system";
-import { CharacterRigAdapter, bindEquipmentModelToSocket } from "@/game/equipment/runtime";
-import type { AttachmentDebugBindingReport, SocketId, TransformPose } from "@/game/equipment/schema";
+import type { AttachmentDebugBindingReport, TransformPose } from "@/game/equipment/schema";
 
 interface AttachmentEditorViewportProps {
   binding: AttachmentDebugBindingReport | null;
@@ -257,41 +260,67 @@ function AttachmentEditorPreviewScene({
   onDraggingChange: (dragging: boolean) => void;
   onPlaybackTimeChange: (timeSec: number) => void;
 }) {
-  const [adapter, setAdapter] = useState<CharacterRigAdapter | null>(null);
+  const [rig, setRig] = useState<CharacterRig | null>(null);
+  const [attachmentSystem, setAttachmentSystem] = useState<AttachmentSystem | null>(null);
   const [bindingRoot, setBindingRoot] = useState<THREE.Object3D | null>(null);
-  const handleRef = useRef<ReturnType<typeof bindEquipmentModelToSocket> | null>(null);
+  const handleRef = useRef<ReturnType<AttachmentSystem["bind"]> | null>(null);
   const transformControlsRef = useRef<any>(null);
   const orbitControlsRef = useRef<any>(null);
   const lastPoseRef = useRef(profile.resolvedPoseOffset);
-  const mixerRef = useRef<THREE.AnimationMixer | null>(null);
-  const actionsRef = useRef<Record<string, THREE.AnimationAction>>({});
-  const activeActionRef = useRef<THREE.AnimationAction | null>(null);
+  const lastCommittedPoseRef = useRef(profile.resolvedPoseOffset);
+  const poseCommitTimeoutRef = useRef<number | null>(null);
+  const isDraggingRef = useRef(false);
+  const animatorRef = useRef<CharacterAnimator | null>(null);
   const lastReportedTimeRef = useRef(0);
   const { camera, invalidate } = useThree();
 
   useEffect(() => {
     lastPoseRef.current = profile.resolvedPoseOffset;
+    lastCommittedPoseRef.current = profile.resolvedPoseOffset;
   }, [profile.resolvedPoseOffset]);
 
   useEffect(() => {
-    const nextAdapter = new CharacterRigAdapter(characterModel.scene, getRigProfileIdForPresentation(presentationId));
-    setAdapter(nextAdapter);
-
     return () => {
-      nextAdapter.dispose();
-      setAdapter(null);
+      if (poseCommitTimeoutRef.current !== null) {
+        window.clearTimeout(poseCommitTimeoutRef.current);
+        poseCommitTimeoutRef.current = null;
+      }
     };
-  }, [characterModel.scene, presentationId]);
+  }, []);
 
   useEffect(() => {
-    if (!adapter) {
+    const nextRig = new CharacterRig(characterModel, presentationId);
+    nextRig.setActorTransform({ x: 0, y: 0, z: 0 }, 0);
+    setRig(nextRig);
+
+    return () => {
+      nextRig.dispose();
+      setRig(null);
+    };
+  }, [characterModel, presentationId]);
+
+  useEffect(() => {
+    if (!rig) {
+      setAttachmentSystem(null);
+      return;
+    }
+
+    const nextAttachmentSystem = new AttachmentSystem(rig);
+    setAttachmentSystem(nextAttachmentSystem);
+    return () => {
+      nextAttachmentSystem.clear();
+      setAttachmentSystem(null);
+    };
+  }, [rig]);
+
+  useEffect(() => {
+    if (!attachmentSystem) {
       setBindingRoot(null);
       handleRef.current = null;
       return;
     }
 
-    const handle = bindEquipmentModelToSocket({
-      adapter,
+    const handle = attachmentSystem.bind("attachment_editor_binding", {
       characterId: "attachment_editor",
       characterName: "Attachment Editor",
       itemId: binding.itemId,
@@ -302,22 +331,16 @@ function AttachmentEditorPreviewScene({
       sourceMarkerId: profile.sourceMarkerId,
     });
 
-    if (!handle) {
-      setBindingRoot(null);
-      handleRef.current = null;
-      return;
-    }
-
     handleRef.current = handle;
-    setBindingRoot(handle.bindingRoot);
+    setBindingRoot(handle?.bindingRoot ?? null);
 
     return () => {
       handleRef.current = null;
-      handle.detach();
+      attachmentSystem.unbind("attachment_editor_binding");
       setBindingRoot(null);
     };
   }, [
-    adapter,
+    attachmentSystem,
     binding.itemId,
     binding.socketId,
     binding.stanceFamily,
@@ -327,37 +350,29 @@ function AttachmentEditorPreviewScene({
   ]);
 
   useEffect(() => {
-    if (!handleRef.current) {
+    if (!attachmentSystem) {
       return;
     }
 
-    handleRef.current.applyPose(profile.resolvedPoseOffset);
+    attachmentSystem.updatePose("attachment_editor_binding", profile.resolvedPoseOffset);
     lastPoseRef.current = profile.resolvedPoseOffset;
-  }, [profile.resolvedPoseOffset]);
+  }, [attachmentSystem, profile.resolvedPoseOffset]);
 
   useEffect(() => {
-    const mixer = new THREE.AnimationMixer(characterModel.scene);
-    const actions: Record<string, THREE.AnimationAction> = {};
-    Object.entries(characterModel.animations).forEach(([animationId, clip]) => {
-      if (!clip) {
-        return;
-      }
-      const action = mixer.clipAction(clip, characterModel.scene);
-      action.setLoop(THREE.LoopRepeat, Infinity);
-      action.clampWhenFinished = false;
-      actions[animationId] = action;
-    });
+    if (!rig) {
+      animatorRef.current?.dispose();
+      animatorRef.current = null;
+      return;
+    }
 
-    mixerRef.current = mixer;
-    actionsRef.current = actions;
+    const animator = new CharacterAnimator(rig.skeletonRoot, characterModel.clipRegistry);
+    animatorRef.current = animator;
 
     return () => {
-      mixer.stopAllAction();
-      mixerRef.current = null;
-      actionsRef.current = {};
-      activeActionRef.current = null;
+      animator.dispose();
+      animatorRef.current = null;
     };
-  }, [characterModel.animations, characterModel.scene]);
+  }, [characterModel.clipRegistry, rig]);
 
   useEffect(() => {
     const controls = orbitControlsRef.current;
@@ -376,69 +391,44 @@ function AttachmentEditorPreviewScene({
   }, [camera, cameraViewPreset, cameraViewRevision, invalidate]);
 
   useEffect(() => {
-    const actions = actionsRef.current;
-    const mixer = mixerRef.current;
-    const nextClipId = (clipId && actions[clipId] ? clipId : null) ?? (actions.idle ? "idle" : Object.keys(actions)[0] ?? null);
+    const animator = animatorRef.current;
+    const availableClipIds = animator?.getAvailableClipIds() ?? [];
+    const nextClipId = (clipId && availableClipIds.includes(clipId as PresentationAnimationId) ? (clipId as PresentationAnimationId) : null) ?? (availableClipIds.includes("idle") ? "idle" : availableClipIds[0] ?? null);
 
-    Object.values(actions).forEach((action) => {
-      action.stop();
-      action.enabled = false;
-      action.paused = false;
+    if (!animator || !nextClipId) {
+      onPlaybackTimeChange(0);
+      invalidate();
+      return;
+    }
+
+    const nextTime = clampPlaybackTime(scrubTimeSec, animator.getClipDuration(nextClipId));
+    animator.applyPreviewState({
+      clipId: nextClipId,
+      paused: playbackPaused,
+      timeSec: nextTime,
     });
-
-    if (!mixer || !nextClipId) {
-      activeActionRef.current = null;
-      onPlaybackTimeChange(0);
-      invalidate();
-      return;
-    }
-
-    const nextAction = actions[nextClipId];
-    if (!nextAction) {
-      activeActionRef.current = null;
-      onPlaybackTimeChange(0);
-      invalidate();
-      return;
-    }
-
-    const nextTime = clampPlaybackTime(scrubTimeSec, nextAction.getClip().duration);
-    nextAction.enabled = true;
-    nextAction.reset();
-    nextAction.play();
-    activeActionRef.current = nextAction;
     lastReportedTimeRef.current = nextTime;
-
-    if (playbackPaused) {
-      nextAction.paused = false;
-      mixer.setTime(nextTime);
-      nextAction.paused = true;
-      onPlaybackTimeChange(nextTime);
-      invalidate();
-      return;
-    }
-
-    mixer.setTime(nextTime);
-    nextAction.paused = false;
     onPlaybackTimeChange(nextTime);
     invalidate();
   }, [clipId, invalidate, onPlaybackTimeChange, playbackPaused, scrubTimeSec]);
 
   useEffect(() => {
-    const mixer = mixerRef.current;
-    const activeAction = activeActionRef.current;
-    if (!mixer || !activeAction) {
+    const animator = animatorRef.current;
+    const activeClipId = animator?.getActiveClipId() ?? null;
+    if (!animator || !activeClipId) {
       return;
     }
 
     if (!playbackPaused) {
-      activeAction.paused = false;
       return;
     }
 
-    const nextTime = clampPlaybackTime(scrubTimeSec, activeAction.getClip().duration);
-    activeAction.paused = false;
-    mixer.setTime(nextTime);
-    activeAction.paused = true;
+    const nextTime = clampPlaybackTime(scrubTimeSec, animator.getClipDuration(activeClipId));
+    animator.applyPreviewState({
+      clipId: activeClipId,
+      paused: true,
+      timeSec: nextTime,
+    });
     lastReportedTimeRef.current = nextTime;
     onPlaybackTimeChange(nextTime);
     invalidate();
@@ -450,6 +440,32 @@ function AttachmentEditorPreviewScene({
       return;
     }
 
+    const commitPose = (nextPose: TransformPose, immediate = false) => {
+      const flush = () => {
+        poseCommitTimeoutRef.current = null;
+        if (poseApproximatelyEqual(lastCommittedPoseRef.current, nextPose)) {
+          return;
+        }
+        lastCommittedPoseRef.current = nextPose;
+        onPoseChange(nextPose);
+      };
+
+      if (immediate || !isDraggingRef.current) {
+        if (poseCommitTimeoutRef.current !== null) {
+          window.clearTimeout(poseCommitTimeoutRef.current);
+          poseCommitTimeoutRef.current = null;
+        }
+        flush();
+        return;
+      }
+
+      if (poseCommitTimeoutRef.current !== null) {
+        return;
+      }
+
+      poseCommitTimeoutRef.current = window.setTimeout(flush, 90);
+    };
+
     const handleObjectChange = () => {
       const nextPose = handleRef.current?.readPose();
       if (!nextPose || poseApproximatelyEqual(lastPoseRef.current, nextPose)) {
@@ -457,11 +473,20 @@ function AttachmentEditorPreviewScene({
       }
 
       lastPoseRef.current = nextPose;
-      onPoseChange(nextPose);
+      commitPose(nextPose);
     };
 
     const handleDraggingChanged = (event: { value: boolean }) => {
-      onDraggingChange(Boolean(event.value));
+      const dragging = Boolean(event.value);
+      isDraggingRef.current = dragging;
+      onDraggingChange(dragging);
+      if (!dragging) {
+        const nextPose = handleRef.current?.readPose();
+        if (nextPose) {
+          lastPoseRef.current = nextPose;
+          commitPose(nextPose, true);
+        }
+      }
     };
 
     controls.addEventListener("objectChange", handleObjectChange);
@@ -470,26 +495,30 @@ function AttachmentEditorPreviewScene({
     return () => {
       controls.removeEventListener("objectChange", handleObjectChange);
       controls.removeEventListener("dragging-changed", handleDraggingChanged);
+      if (poseCommitTimeoutRef.current !== null) {
+        window.clearTimeout(poseCommitTimeoutRef.current);
+        poseCommitTimeoutRef.current = null;
+      }
+      isDraggingRef.current = false;
       onDraggingChange(false);
     };
   }, [bindingRoot, onDraggingChange, onPoseChange]);
 
   useFrame((_, delta) => {
-    const mixer = mixerRef.current;
-    const activeAction = activeActionRef.current;
-    if (!mixer || !activeAction || playbackPaused) {
+    const animator = animatorRef.current;
+    const activeClipId = animator?.getActiveClipId() ?? null;
+    if (!animator || !activeClipId || playbackPaused) {
       return;
     }
 
-    mixer.update(delta);
-    const nextTime = wrapPlaybackTime(activeAction.time, activeAction.getClip().duration);
+    const nextTime = wrapPlaybackTime(animator.updatePreview(delta), animator.getClipDuration(activeClipId));
     if (Math.abs(nextTime - lastReportedTimeRef.current) >= playbackReportStepSec * 0.5) {
       lastReportedTimeRef.current = nextTime;
       onPlaybackTimeChange(nextTime);
     }
   });
 
-  const visibleSocketIds = adapter ? (Object.keys(adapter.profile.sockets) as SocketId[]) : [];
+  const visibleSocketIds = rig ? [binding.socketId] : [];
   const activeMarkerNode = useMemo(() => {
     const itemDefinition = equipmentItemsById[binding.itemId];
     const markerDefinition = itemDefinition.markers[profile.sourceMarkerId];
@@ -526,17 +555,15 @@ function AttachmentEditorPreviewScene({
         <circleGeometry args={[2.4, 48]} />
         <meshStandardMaterial color="#ece0cb" />
       </mesh>
-      <group rotation={[0, characterModel.rotationOffsetY, 0]}>
-        <primitive object={characterModel.scene} />
-        <SkeletonDebugHelper root={characterModel.scene} enabled={showSkeleton} />
+      {rig ? <primitive object={rig.actorRoot} /> : null}
+      <SkeletonDebugHelper root={rig?.skeletonRoot ?? null} enabled={showSkeleton} />
         {showSockets
           ? visibleSocketIds.map((socketId) => (
-              <NodeAxesHelper key={socketId} parent={adapter?.getSocketNode(socketId) ?? null} size={0.18} />
+              <NodeAxesHelper key={socketId} parent={rig?.getSocketNode(socketId) ?? null} size={0.18} />
             ))
           : null}
-        {showMarkers && bindingRoot ? <NodeAxesHelper parent={bindingRoot} size={0.15} /> : null}
-        {showMarkers && activeMarkerNode ? <NodeAxesHelper parent={activeMarkerNode} size={0.12} /> : null}
-      </group>
+      {showMarkers && bindingRoot ? <NodeAxesHelper parent={bindingRoot} size={0.15} /> : null}
+      {showMarkers && activeMarkerNode ? <NodeAxesHelper parent={activeMarkerNode} size={0.12} /> : null}
       {bindingRoot ? (
         <TransformControls
           ref={transformControlsRef}

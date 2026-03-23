@@ -6,10 +6,17 @@ type RenderState = {
   leader: {
     resource: number;
     spellCooldowns: Record<string, number>;
+    locomotion?: {
+      mode: string;
+      facingMode: string;
+    };
     equipment: {
       active: Record<string, string | null>;
       stored: Record<string, string | null>;
     };
+  } | null;
+  leaderAnimation?: {
+    activeBaseClip: string | null;
   } | null;
   companions: Array<{
     id: string;
@@ -68,6 +75,16 @@ const clickBattlefield = async (page: Page, xRatio: number, yRatio: number) => {
   });
 };
 
+const clickSelector = async (page: Page, selector: string) => {
+  await page.evaluate((targetSelector) => {
+    const element = document.querySelector<HTMLElement>(targetSelector);
+    if (!element) {
+      throw new Error(`Selector not found: ${targetSelector}`);
+    }
+    element.click();
+  }, selector);
+};
+
 const callCombatDebug = async <TArgs extends unknown[]>(
   page: Page,
   fn: (api: CombatDebugApi, ...args: TArgs) => void,
@@ -99,10 +116,11 @@ async function main() {
   try {
     await page.goto(url, { waitUntil: "domcontentloaded" });
     await page.waitForSelector("#battlefield");
+    await page.waitForFunction(() => typeof (window as Window & { render_game_to_text?: () => string }).render_game_to_text === "function");
 
-    await page.getByTestId("recruit-companion_vanguard").click();
-    await page.getByTestId("recruit-companion_ranger").click();
-    await page.getByTestId("recruit-companion_mender").click();
+    await clickSelector(page, '[data-testid="recruit-companion_vanguard"]');
+    await clickSelector(page, '[data-testid="recruit-companion_ranger"]');
+    await clickSelector(page, '[data-testid="recruit-companion_mender"]');
 
     let state = await readState(page);
     assert.equal(state.companions.length, 3, "expected three recruited companions");
@@ -121,12 +139,30 @@ async function main() {
     state = await readState(page);
     assert.equal(Object.keys(state.leader?.equipment.active ?? {}).length > 0, true, "toggle should restore the default loadout");
 
-    await page.getByTestId("start-battle").click();
+    await clickSelector(page, '[data-testid="start-battle"]');
     await advanceTime(page, 200);
 
     state = await readState(page);
     assert.equal(state.phase, "battle", "battle should start");
     assert.equal(state.livingEnemies > 0, true, "wave should spawn enemies");
+
+    await page.keyboard.press("KeyC");
+    await page.keyboard.down("KeyA");
+    await page.waitForTimeout(220);
+    state = await readState(page);
+    assert.equal(state.leader?.locomotion?.mode, "strafe", "aim-left should resolve to strafe locomotion");
+    assert.equal(state.leader?.locomotion?.facingMode, "faceAimDirection", "aim-left should keep aim-facing");
+    assert.equal(state.leaderAnimation?.activeBaseClip !== null, true, "animation debug should expose the active base clip");
+    await page.keyboard.up("KeyA");
+    await page.keyboard.press("KeyC");
+
+    await page.keyboard.down("Shift");
+    await page.keyboard.down("KeyW");
+    await page.waitForTimeout(220);
+    state = await readState(page);
+    assert.equal(state.leader?.locomotion?.mode, "sprint", "shift-forward should resolve to sprint locomotion");
+    await page.keyboard.up("KeyW");
+    await page.keyboard.up("Shift");
 
     const orderBefore = state.companions[0]?.order;
     await callCombatDebug(
@@ -158,7 +194,10 @@ async function main() {
     assert.equal((state.leader?.resource ?? 0) < resourceBeforeCast, true, "spell cast should spend resource");
     assert.equal((state.leader?.spellCooldowns?.steam_snare ?? 0) > 0, true, "spell cast should trigger cooldown");
 
-    await page.locator("#debug-down-ally").click();
+    await page.getByText("Debug/Ops").click();
+    await page.locator("#debug-down-ally").waitFor({ state: "visible" });
+    await advanceTime(page, 100);
+    await clickSelector(page, "#debug-down-ally");
     await advanceTime(page, 100);
     state = await readState(page);
     const downedCompanionId = state.companions.find((companion) => companion.downed)?.id ?? null;
@@ -176,7 +215,7 @@ async function main() {
       "revive should restore the targeted downed companion",
     );
 
-    await page.locator("#debug-clear-enemies").click();
+    await clickSelector(page, "#debug-clear-enemies");
     await advanceTime(page, 200);
 
     state = await readState(page);
